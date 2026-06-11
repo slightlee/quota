@@ -34,7 +34,7 @@
 ### 从源码构建
 
 ```bash
-git clone https://github.com/<your-username>/quota.git
+git clone https://github.com/slightlee/quota.git
 cd quota
 swift build -c release
 cp .build/release/Quota ~/Applications/Quota

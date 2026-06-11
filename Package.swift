@@ -12,7 +12,10 @@ let package = Package(
     targets: [
         .executableTarget(
             name: "Quota",
-            path: "Sources/Quota"
+            path: "Sources/Quota",
+            resources: [
+                .process("Resources")
+            ]
         )
     ]
 )

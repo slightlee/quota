@@ -7,6 +7,7 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let contentView = MenuBarLimitView(frame: NSRect(x: 0, y: 0, width: 260, height: 105))
     private let errorItem = NSMenuItem()
+    private var usesIconOnly = false
 
     init(service: RateLimitService, showProxySettings: @escaping () -> Void) {
         self.service = service
@@ -14,7 +15,13 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
     }
 
     func start() {
-        statusItem.button?.title = "Codex --%"
+        if let image = loadStatusImage() {
+            statusItem.button?.image = image
+            statusItem.button?.imagePosition = .imageOnly
+            usesIconOnly = true
+        } else {
+            statusItem.button?.title = "Codex"
+        }
         statusItem.button?.toolTip = "Codex 额度"
         debugLog("[Quota] status item created")
 
@@ -50,14 +57,17 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
         if let lastState {
             render(state: lastState, error: error)
         } else {
-            statusItem.button?.title = "Codex --%"
+            updateStatusLabel(fiveHour: nil, weekly: nil)
             errorItem.title = "错误：\(error.localizedDescription)"
             errorItem.isHidden = false
         }
     }
 
     private func render(state: RateLimitDisplayState, error: Error?) {
-        statusItem.button?.title = "Codex \(Int(state.fiveHour.remainingPercent.rounded()))% / \(Int(state.weekly.remainingPercent.rounded()))%"
+        updateStatusLabel(
+            fiveHour: Int(state.fiveHour.remainingPercent.rounded()),
+            weekly: Int(state.weekly.remainingPercent.rounded())
+        )
         debugLog("[Quota] status updated: fiveHour=\(Int(state.fiveHour.remainingPercent.rounded())) weekly=\(Int(state.weekly.remainingPercent.rounded()))")
 
         contentView.update(with: state)
@@ -81,6 +91,30 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
 
     @objc private func quit() {
         NSApplication.shared.terminate(nil)
+    }
+
+    private func loadStatusImage() -> NSImage? {
+        guard let image = Bundle.module
+            .url(forResource: "MenuBarIcon", withExtension: "png")
+            .flatMap(NSImage.init(contentsOf:)) else {
+            return nil
+        }
+
+        image.size = NSSize(width: 18, height: 18)
+        image.isTemplate = false
+        return image
+    }
+
+    private func updateStatusLabel(fiveHour: Int?, weekly: Int?) {
+        guard !usesIconOnly else {
+            return
+        }
+
+        if let fiveHour, let weekly {
+            statusItem.button?.title = "Codex \(fiveHour)% / \(weekly)%"
+        } else {
+            statusItem.button?.title = "Codex --%"
+        }
     }
 
 }

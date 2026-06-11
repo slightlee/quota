@@ -1,11 +1,11 @@
 import AppKit
 
 @MainActor
-final class StatusBarController: NSObject, RateLimitServiceObserver {
+final class MenuBarController: NSObject, RateLimitServiceObserver {
     private let service: RateLimitService
     private let client: CodexAppServerClient
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    private let contentView = LimitBarsView(width: 300)
+    private let contentView = MenuBarLimitView(frame: NSRect(x: 0, y: 0, width: 260, height: 105))
     private let errorItem = NSMenuItem()
 
     init(service: RateLimitService, client: CodexAppServerClient) {

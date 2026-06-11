@@ -1,23 +1,20 @@
 import AppKit
 
-final class LimitBarsView: NSView {
+final class TouchBarLimitView: NSView {
     private let stack = NSStackView()
     private let fiveHourRow = LimitRowView()
     private let weeklyRow = LimitRowView()
-    private let viewWidth: CGFloat
 
     override var intrinsicContentSize: NSSize {
-        NSSize(width: viewWidth, height: 26)
+        NSSize(width: 450, height: 26)
     }
 
-    init(width: CGFloat = 450) {
-        self.viewWidth = width
-        super.init(frame: NSRect(x: 0, y: 0, width: width, height: 26))
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
         setup()
     }
 
     required init?(coder: NSCoder) {
-        self.viewWidth = 450
         super.init(coder: coder)
         setup()
     }

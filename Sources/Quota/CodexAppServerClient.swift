@@ -24,66 +24,121 @@ final class CodexAppServerClient {
     private var initialized = false
     private var initializing = false
     private var initQueue: [(Result<Void, Error>) -> Void] = []
+    private var cachedAccount: AccountInfo?
+    private var accountPending: [(Result<AccountInfo, Error>) -> Void] = []
+    private var accountLoading = false
 
     func readRateLimits(completion: @escaping (Result<GetAccountRateLimitsResponse, Error>) -> Void) {
         debugLog("[Quota] request account/rateLimits/read")
-        request(method: "account/rateLimits/read") { [decoder] result in
-            switch result {
-            case .success(let value):
-                do {
-                    let data = try JSONEncoder().encode(value)
-                    completion(.success(try decoder.decode(GetAccountRateLimitsResponse.self, from: data)))
-                } catch {
-                    completion(.failure(error))
-                }
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
+        request(method: "account/rateLimits/read", as: GetAccountRateLimitsResponse.self, completion: completion)
     }
 
     func readAccount(completion: @escaping (Result<AccountInfo, Error>) -> Void) {
         debugLog("[Quota] request account/read")
-        request(method: "account/read") { [decoder] result in
-            switch result {
-            case .success(let value):
-                do {
-                    let data = try JSONEncoder().encode(value)
-                    completion(.success(try decoder.decode(AccountResponse.self, from: data).account))
-                } catch {
-                    completion(.failure(error))
+        queue.async {
+            if let cachedAccount = self.cachedAccount {
+                completion(.success(cachedAccount))
+                return
+            }
+
+            self.accountPending.append(completion)
+            guard !self.accountLoading else { return }
+
+            self.accountLoading = true
+            self.requestOnQueue(method: "account/read", as: AccountResponse.self) { result in
+                switch result {
+                case .success(let response):
+                    let account = response.account
+                    self.cachedAccount = account
+                    self.finishAccountRequests(.success(account))
+                case .failure(let error):
+                    self.finishAccountRequests(.failure(error))
                 }
-            case .failure(let error):
-                completion(.failure(error))
             }
         }
     }
 
     func stop() {
         queue.async {
-            self.stdout?.readabilityHandler = nil
-            self.stdin?.closeFile()
-            self.stdout?.closeFile()
-            self.process?.terminate()
-            self.process = nil
-            self.stdin = nil
-            self.stdout = nil
-            self.initialized = false
-            self.failPending(CodexQuotaError.invalidResponse)
+            self.teardownProcess(error: CodexQuotaError.invalidResponse)
         }
     }
 
-    private func request(method: String, completion: @escaping (Result<JSONValue, Error>) -> Void) {
+    private func request<T: Decodable>(
+        method: String,
+        as responseType: T.Type,
+        completion: @escaping (Result<T, Error>) -> Void
+    ) {
         queue.async {
-            self.ensureStarted { result in
-                switch result {
-                case .success:
-                    self.send(method: method, params: nil, completion: completion)
-                case .failure(let error):
-                    completion(.failure(error))
+            self.requestOnQueue(method: method, as: responseType, completion: completion)
+        }
+    }
+
+    private func requestOnQueue<T: Decodable>(
+        method: String,
+        as responseType: T.Type,
+        completion: @escaping (Result<T, Error>) -> Void
+    ) {
+        ensureStarted { result in
+            switch result {
+            case .success:
+                self.send(method: method, params: nil) { result in
+                    switch result {
+                    case .success(let value):
+                        do {
+                            let data = try JSONEncoder().encode(value)
+                            completion(.success(try self.decoder.decode(responseType, from: data)))
+                        } catch {
+                            completion(.failure(error))
+                        }
+                    case .failure(let error):
+                        completion(.failure(error))
+                    }
                 }
+            case .failure(let error):
+                completion(.failure(error))
             }
         }
+    }
+
+    private func teardownProcess(error: Error) {
+        stdout?.readabilityHandler = nil
+        stdin?.closeFile()
+        stdout?.closeFile()
+        if let process, process.isRunning {
+            process.terminate()
+        }
+        process = nil
+        stdin = nil
+        stdout = nil
+        buffer.removeAll(keepingCapacity: true)
+        nextID = 1
+        initialized = false
+        initializing = false
+        cachedAccount = nil
+        failPending(error)
+        failInitQueue(error)
+        failAccountRequests(error)
+    }
+
+    private func failInitQueue(_ error: Error) {
+        let callbacks = initQueue
+        initQueue = []
+        callbacks.forEach { $0(.failure(error)) }
+    }
+
+    private func failAccountRequests(_ error: Error) {
+        let callbacks = accountPending
+        accountPending = []
+        accountLoading = false
+        callbacks.forEach { $0(.failure(error)) }
+    }
+
+    private func finishAccountRequests(_ result: Result<AccountInfo, Error>) {
+        let callbacks = accountPending
+        accountPending = []
+        accountLoading = false
+        callbacks.forEach { $0(result) }
     }
 
     private func ensureStarted(completion: @escaping (Result<Void, Error>) -> Void) {
@@ -158,9 +213,7 @@ final class CodexAppServerClient {
         process.terminationHandler = { [weak self] _ in
             self?.queue.async {
                 debugLog("[Quota] app-server terminated")
-                self?.initialized = false
-                self?.process = nil
-                self?.failPending(CodexQuotaError.invalidResponse)
+                self?.teardownProcess(error: CodexQuotaError.invalidResponse)
             }
         }
 
@@ -245,6 +298,7 @@ final class CodexAppServerClient {
 
             callback(.success(result))
         } catch {
+            debugLog("[Quota] failed to decode RPC response: \(error.localizedDescription)")
             return
         }
     }

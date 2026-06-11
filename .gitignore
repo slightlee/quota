@@ -5,6 +5,10 @@
 .build/
 .swiftpm/
 Package.resolved
+*.o
+*.d
+*.swiftdeps
+*.swiftdeps~
 
 # Xcode (if generated)
 *.xcodeproj/

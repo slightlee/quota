@@ -11,7 +11,15 @@
 > [!NOTE]
 > 本项目需要已安装 Codex CLI（`/Applications/Codex.app`），且账户需有有效的 rate limit 配额。
 
-## 效果
+## 特性
+
+- 菜单栏实时展示 5 小时窗口和周限额的剩余百分比
+- Touch Bar 以分段进度条展示两个窗口的剩余情况
+- 每 2 分钟自动刷新，也支持手动刷新
+- 以 accessory 模式运行，不占 Dock 栏
+- 通过 Codex CLI 的 `app-server` 读取数据
+
+## 截图
 
 <!-- 替换为实际截图 -->
 
@@ -22,14 +30,8 @@
 
 - 菜单栏显示 5 小时窗口 / 周限额的剩余百分比
 - Touch Bar 以分段进度条可视化展示，颜色随余量变化（绿 → 橙 → 红）
-- 每 2 分钟自动刷新，也可点击菜单手动刷新
-- 以 accessory 模式运行，不占 Dock 栏
 
 ## 安装
-
-### Homebrew（推荐）
-
-> TODO: 发布后补充
 
 ### 从源码构建
 
@@ -62,29 +64,36 @@ cp .build/release/Quota ~/Applications/Quota
 └──────┬───────┘                          └──────────────┘
        │
        ▼
- ┌─────────────┐     ┌─────────────────┐
- │ 菜单栏文字  │     │ Touch Bar 进度条│
- └─────────────┘     └─────────────────┘
+ ┌──────────────────────────┐   ┌──────────────────────┐
+ │ MenuBarController        │   │ TouchBarController   │
+ │ + MenuBarLimitView       │   │ + TouchBarLimitView  │
+ └──────────────────────────┘   └──────────────────────┘
 ```
 
 Quota 启动 Codex CLI 的 app-server 子进程，通过 stdin/stdout 以 JSON-RPC 协议读取配额数据，每 2 分钟轮询一次。
+菜单栏由 `MenuBarController` + `MenuBarLimitView` 负责，Touch Bar 由 `TouchBarController` + `TouchBarLimitView` 负责。
 
 ## 系统要求
 
 - macOS 14 (Sonoma) 或更高版本
 - [Codex CLI](https://github.com/openai/codex) 已安装
 
-## 贡献
-
-欢迎提 Issue 和 PR。
+## 开发
 
 ```bash
-# 开发模式运行
+# 本地运行
 swift run
+
+# 生成发布版
+swift build -c release
 
 # 查看调试日志
 swift run 2>&1 | grep "\[Quota\]"
 ```
+
+## 贡献
+
+欢迎提 Issue 和 PR。
 
 ## 许可证
 

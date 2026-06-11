@@ -6,7 +6,7 @@ final class TouchBarController: NSObject, NSTouchBarDelegate, RateLimitServiceOb
     private let client: CodexAppServerClient
     private let itemIdentifier = NSTouchBarItem.Identifier("com.openai.codex.touchbar.quota")
     private let trayIdentifier = "com.openai.codex.touchbar.quota.tray"
-    private let contentView = LimitBarsView(width: 450)
+    private let contentView = TouchBarLimitView(frame: NSRect(x: 0, y: 0, width: 450, height: 26))
     private lazy var touchBar: NSTouchBar = {
         let touchBar = NSTouchBar()
         touchBar.delegate = self

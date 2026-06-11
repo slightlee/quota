@@ -44,6 +44,11 @@ final class RateLimitService {
         timer = nil
     }
 
+    func reconnectAndRefresh() {
+        isRefreshing = false
+        refresh()
+    }
+
     func refresh() {
         guard !isRefreshing else { return }
 

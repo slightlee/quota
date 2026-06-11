@@ -1,4 +1,5 @@
 import Foundation
+import CFNetwork
 
 final class CodexAppServerClient {
     private struct RPCResponse: Decodable {
@@ -12,6 +13,7 @@ final class CodexAppServerClient {
     }
 
     private let codexURL = URL(fileURLWithPath: "/Applications/Codex.app/Contents/Resources/codex")
+    private let proxySettingsStore: ProxySettingsStore
     private let queue = DispatchQueue(label: "CodexAppServerClient")
     private let decoder = JSONDecoder()
 
@@ -28,6 +30,11 @@ final class CodexAppServerClient {
     private var cachedAccount: AccountInfo?
     private var accountPending: [(Result<AccountInfo, Error>) -> Void] = []
     private var accountLoading = false
+    private var processGeneration = 0
+
+    init(proxySettingsStore: ProxySettingsStore = .shared) {
+        self.proxySettingsStore = proxySettingsStore
+    }
 
     func readRateLimits(completion: @escaping (Result<GetAccountRateLimitsResponse, Error>) -> Void) {
         debugLog("[Quota] request account/rateLimits/read")
@@ -59,9 +66,9 @@ final class CodexAppServerClient {
         }
     }
 
-    func stop() {
+    func stop(notifyPending: Bool = true) {
         queue.async {
-            self.teardownProcess(error: CodexQuotaError.invalidResponse)
+            self.teardownProcess(error: CodexQuotaError.invalidResponse, notifyPending: notifyPending)
         }
     }
 
@@ -102,7 +109,7 @@ final class CodexAppServerClient {
         }
     }
 
-    private func teardownProcess(error: Error) {
+    private func teardownProcess(error: Error, notifyPending: Bool) {
         stdout?.readabilityHandler = nil
         stderr?.readabilityHandler = nil
         stdin?.closeFile()
@@ -120,9 +127,17 @@ final class CodexAppServerClient {
         initialized = false
         initializing = false
         cachedAccount = nil
-        failPending(error)
-        failInitQueue(error)
-        failAccountRequests(error)
+        processGeneration &+= 1
+        if notifyPending {
+            failPending(error)
+            failInitQueue(error)
+            failAccountRequests(error)
+        } else {
+            pending.removeAll()
+            initQueue.removeAll()
+            accountPending.removeAll()
+            accountLoading = false
+        }
     }
 
     private func failInitQueue(_ error: Error) {
@@ -207,17 +222,20 @@ final class CodexAppServerClient {
         let input = Pipe()
         let output = Pipe()
         let error = Pipe()
+        let generation = processGeneration
 
         let process = Process()
         process.executableURL = codexURL
         process.arguments = ["app-server", "--listen", "stdio://"]
+        process.environment = launchEnvironment()
         process.standardInput = input
         process.standardOutput = output
         process.standardError = error
         process.terminationHandler = { [weak self] _ in
             self?.queue.async {
                 debugLog("[Quota] app-server terminated")
-                self?.teardownProcess(error: CodexQuotaError.invalidResponse)
+                guard let self, self.processGeneration == generation else { return }
+                self.teardownProcess(error: CodexQuotaError.invalidResponse, notifyPending: true)
             }
         }
 
@@ -249,6 +267,133 @@ final class CodexAppServerClient {
             stdout = nil
             stderr = nil
             throw error
+        }
+    }
+
+    private func launchEnvironment() -> [String: String] {
+        var environment = ProcessInfo.processInfo.environment
+        let proxyKeys = Self.proxyEnvironmentKeys
+
+        switch proxySettingsStore.configuration.mode {
+        case .automatic:
+            if !proxyKeys.contains(where: { environment[$0]?.isEmpty == false }) {
+                let systemEnvironment = Self.systemProxyEnvironment()
+                for (key, value) in systemEnvironment {
+                    environment[key] = value
+                }
+            }
+        case .manual:
+            let proxyURL = proxySettingsStore.configuration.proxyURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !proxyURL.isEmpty {
+                Self.applyProxy(proxyURL, to: &environment)
+            }
+        case .disabled:
+            for key in proxyKeys {
+                environment.removeValue(forKey: key)
+            }
+        }
+
+        return environment
+    }
+
+    private static let proxyEnvironmentKeys = [
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "NO_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+        "no_proxy"
+    ]
+
+    private static func applyProxy(_ proxyURL: String, to environment: inout [String: String]) {
+        for key in proxyEnvironmentKeys {
+            if key.lowercased().contains("no_proxy") {
+                continue
+            }
+            environment[key] = proxyURL
+        }
+    }
+
+    private static func systemProxyEnvironment() -> [String: String] {
+        guard let settingsUnmanaged = CFNetworkCopySystemProxySettings() else {
+            return [:]
+        }
+
+        guard let settings = settingsUnmanaged.takeRetainedValue() as? [String: Any] else {
+            return [:]
+        }
+        var environment: [String: String] = [:]
+
+        if let host = settings[kCFNetworkProxiesHTTPProxy as String] as? String,
+           let port = settings[kCFNetworkProxiesHTTPPort as String] as? NSNumber,
+           (settings[kCFNetworkProxiesHTTPEnable as String] as? NSNumber)?.intValue != 0 {
+            applyHTTPProxy(host: host, port: port.intValue, into: &environment)
+        }
+
+        if let host = settings[kCFNetworkProxiesHTTPSProxy as String] as? String,
+           let port = settings[kCFNetworkProxiesHTTPSPort as String] as? NSNumber,
+           (settings[kCFNetworkProxiesHTTPSEnable as String] as? NSNumber)?.intValue != 0 {
+            applyHTTPProxy(host: host, port: port.intValue, into: &environment)
+        }
+
+        if let host = settings[kCFNetworkProxiesSOCKSProxy as String] as? String,
+           let port = settings[kCFNetworkProxiesSOCKSPort as String] as? NSNumber,
+           (settings[kCFNetworkProxiesSOCKSEnable as String] as? NSNumber)?.intValue != 0 {
+            applySOCKSProxy(host: host, port: port.intValue, into: &environment)
+        }
+
+        if let exceptions = settings[kCFNetworkProxiesExceptionsList as String] as? [String] {
+            applyBypassList(exceptions, into: &environment)
+        }
+
+        if let excludeSimpleHostnames = settings[kCFNetworkProxiesExcludeSimpleHostnames as String] as? NSNumber,
+           excludeSimpleHostnames.intValue != 0 {
+            applyBypassList(["localhost", "127.0.0.1", "::1"], into: &environment)
+        }
+
+        return environment
+    }
+
+    private static func applyHTTPProxy(host: String, port: Int, into environment: inout [String: String]) {
+        let proxyURL = "http://\(host):\(port)"
+        environment["HTTP_PROXY"] = proxyURL
+        environment["HTTPS_PROXY"] = proxyURL
+        environment["ALL_PROXY"] = proxyURL
+        environment["http_proxy"] = proxyURL
+        environment["https_proxy"] = proxyURL
+        environment["all_proxy"] = proxyURL
+    }
+
+    private static func applySOCKSProxy(host: String, port: Int, into environment: inout [String: String]) {
+        let proxyURL = "socks5://\(host):\(port)"
+        environment["HTTP_PROXY"] = proxyURL
+        environment["HTTPS_PROXY"] = proxyURL
+        environment["ALL_PROXY"] = proxyURL
+        environment["http_proxy"] = proxyURL
+        environment["https_proxy"] = proxyURL
+        environment["all_proxy"] = proxyURL
+    }
+
+    private static func applyBypassList(_ hosts: [String], into environment: inout [String: String]) {
+        let bypass = hosts
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: ",")
+
+        guard !bypass.isEmpty else { return }
+
+        if let existing = environment["NO_PROXY"], !existing.isEmpty {
+            environment["NO_PROXY"] = existing + "," + bypass
+        } else {
+            environment["NO_PROXY"] = bypass
+        }
+
+        if let existing = environment["no_proxy"], !existing.isEmpty {
+            environment["no_proxy"] = existing + "," + bypass
+        } else {
+            environment["no_proxy"] = bypass
         }
     }
 

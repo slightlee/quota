@@ -3,12 +3,14 @@ import AppKit
 @MainActor
 final class MenuBarController: NSObject, RateLimitServiceObserver {
     private let service: RateLimitService
+    private let showProxySettings: () -> Void
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let contentView = MenuBarLimitView(frame: NSRect(x: 0, y: 0, width: 260, height: 105))
     private let errorItem = NSMenuItem()
 
-    init(service: RateLimitService) {
+    init(service: RateLimitService, showProxySettings: @escaping () -> Void) {
         self.service = service
+        self.showProxySettings = showProxySettings
     }
 
     func start() {
@@ -27,6 +29,7 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
         menu.addItem(visualItem)
         menu.addItem(errorItem)
         menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "代理设置...", action: #selector(openProxySettings), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "刷新", action: #selector(refresh), keyEquivalent: "r"))
         menu.addItem(NSMenuItem(title: "退出", action: #selector(quit), keyEquivalent: "q"))
         menu.items.forEach { $0.target = self }
@@ -70,6 +73,10 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
 
     @objc private func refresh() {
         service.refresh()
+    }
+
+    @objc private func openProxySettings() {
+        showProxySettings()
     }
 
     @objc private func quit() {

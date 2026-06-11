@@ -2,9 +2,15 @@ import AppKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let client = CodexAppServerClient()
+    private let proxySettingsStore = ProxySettingsStore.shared
+    private lazy var client = CodexAppServerClient(proxySettingsStore: proxySettingsStore)
     private lazy var rateLimitService = RateLimitService(client: client)
-    private lazy var menuBarController = MenuBarController(service: rateLimitService)
+    private lazy var proxySettingsWindowController = ProxySettingsWindowController(store: proxySettingsStore) { [weak self] _ in
+        self?.proxySettingsDidChange()
+    }
+    private lazy var menuBarController = MenuBarController(service: rateLimitService) { [weak self] in
+        self?.showProxySettings()
+    }
     private lazy var touchBarController = TouchBarController(service: rateLimitService)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -19,6 +25,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         debugLog("[Quota] terminating")
         rateLimitService.stop()
         client.stop()
+    }
+
+    private func showProxySettings() {
+        proxySettingsWindowController.show()
     }
 
     private func loadAccountMetadata() {
@@ -36,5 +46,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+
+    private func proxySettingsDidChange() {
+        client.stop(notifyPending: false)
+        loadAccountMetadata()
+        rateLimitService.reconnectAndRefresh()
     }
 }

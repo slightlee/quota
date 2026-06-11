@@ -3,7 +3,6 @@ import AppKit
 @MainActor
 final class TouchBarController: NSObject, NSTouchBarDelegate, RateLimitServiceObserver {
     private let service: RateLimitService
-    private let client: CodexAppServerClient
     private let itemIdentifier = NSTouchBarItem.Identifier("com.openai.codex.touchbar.quota")
     private let trayIdentifier = "com.openai.codex.touchbar.quota.tray"
     private let contentView = TouchBarLimitView(frame: NSRect(x: 0, y: 0, width: 450, height: 26))
@@ -14,22 +13,18 @@ final class TouchBarController: NSObject, NSTouchBarDelegate, RateLimitServiceOb
         return touchBar
     }()
 
-    init(service: RateLimitService, client: CodexAppServerClient) {
+    init(service: RateLimitService) {
         self.service = service
-        self.client = client
     }
 
     func start() {
         debugLog("[Quota] presenting Touch Bar")
-        client.readAccount { [weak self] result in
-            DispatchQueue.main.async {
-                if case .success(let account) = result, let plan = account.planType {
-                    self?.contentView.configureModel("Codex", plan: plan)
-                }
-            }
-        }
         presentSystemModalTouchBar()
         service.addObserver(self)
+    }
+
+    func applyPlan(_ plan: String) {
+        contentView.configureModel("Codex", plan: plan)
     }
 
     func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {

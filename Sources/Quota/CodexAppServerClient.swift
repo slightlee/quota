@@ -18,6 +18,7 @@ final class CodexAppServerClient {
     private var process: Process?
     private var stdin: FileHandle?
     private var stdout: FileHandle?
+    private var stderr: FileHandle?
     private var buffer = Data()
     private var nextID = 1
     private var pending: [Int: (Result<JSONValue, Error>) -> Void] = [:]
@@ -103,14 +104,17 @@ final class CodexAppServerClient {
 
     private func teardownProcess(error: Error) {
         stdout?.readabilityHandler = nil
+        stderr?.readabilityHandler = nil
         stdin?.closeFile()
         stdout?.closeFile()
+        stderr?.closeFile()
         if let process, process.isRunning {
             process.terminate()
         }
         process = nil
         stdin = nil
         stdout = nil
+        stderr = nil
         buffer.removeAll(keepingCapacity: true)
         nextID = 1
         initialized = false
@@ -218,6 +222,7 @@ final class CodexAppServerClient {
         }
 
         stdout = output.fileHandleForReading
+        stderr = error.fileHandleForReading
         stdin = input.fileHandleForWriting
         stdout?.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
@@ -226,6 +231,15 @@ final class CodexAppServerClient {
                 self?.consume(data)
             }
         }
+        stderr?.readabilityHandler = { handle in
+            let data = handle.availableData
+            guard !data.isEmpty else { return }
+#if DEBUG
+            if let text = String(data: data, encoding: .utf8) {
+                debugLog("[Quota] app-server stderr: \(text.trimmingCharacters(in: .whitespacesAndNewlines))")
+            }
+#endif
+        }
 
         do {
             try process.run()
@@ -233,6 +247,7 @@ final class CodexAppServerClient {
         } catch {
             stdin = nil
             stdout = nil
+            stderr = nil
             throw error
         }
     }

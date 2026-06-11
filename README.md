@@ -46,6 +46,14 @@ cp .build/release/Quota ~/Applications/Quota
 
 **系统设置 → 通用 → 登录项 → 添加 Quota**
 
+### 打包为 `.app`
+
+```bash
+bash Scripts/package-app.sh
+```
+
+打包产物会输出到 `.build/package/Quota.app`，可以直接双击启动。
+
 ## 使用
 
 启动后菜单栏会出现 `Codex --%`，稍等片刻自动获取数据。

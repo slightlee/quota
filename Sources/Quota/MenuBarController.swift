@@ -3,28 +3,18 @@ import AppKit
 @MainActor
 final class MenuBarController: NSObject, RateLimitServiceObserver {
     private let service: RateLimitService
-    private let client: CodexAppServerClient
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let contentView = MenuBarLimitView(frame: NSRect(x: 0, y: 0, width: 260, height: 105))
     private let errorItem = NSMenuItem()
 
-    init(service: RateLimitService, client: CodexAppServerClient) {
+    init(service: RateLimitService) {
         self.service = service
-        self.client = client
     }
 
     func start() {
         statusItem.button?.title = "Codex --%"
         statusItem.button?.toolTip = "Codex 额度"
         debugLog("[Quota] status item created")
-
-        client.readAccount { [weak self] result in
-            DispatchQueue.main.async {
-                if case .success(let account) = result, let plan = account.planType {
-                    self?.contentView.configureModel("Codex", plan: plan)
-                }
-            }
-        }
 
         let menu = NSMenu()
         let visualItem = NSMenuItem()
@@ -43,6 +33,10 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
         statusItem.menu = menu
 
         service.addObserver(self)
+    }
+
+    func applyPlan(_ plan: String) {
+        contentView.configureModel("Codex", plan: plan)
     }
 
     func rateLimitService(_ service: RateLimitService, didUpdate state: RateLimitDisplayState) {

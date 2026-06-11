@@ -3,13 +3,14 @@ import AppKit
 @MainActor
 final class StatusBarController: NSObject, RateLimitServiceObserver {
     private let service: RateLimitService
+    private let client: CodexAppServerClient
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    private let fiveHourItem = NSMenuItem()
-    private let weeklyItem = NSMenuItem()
+    private let contentView = LimitBarsView(width: 300)
     private let errorItem = NSMenuItem()
 
-    init(service: RateLimitService) {
+    init(service: RateLimitService, client: CodexAppServerClient) {
         self.service = service
+        self.client = client
     }
 
     func start() {
@@ -17,14 +18,23 @@ final class StatusBarController: NSObject, RateLimitServiceObserver {
         statusItem.button?.toolTip = "Codex 额度"
         debugLog("[Quota] status item created")
 
+        client.readAccount { [weak self] result in
+            DispatchQueue.main.async {
+                if case .success(let account) = result, let plan = account.planType {
+                    self?.contentView.configureModel("Codex", plan: plan)
+                }
+            }
+        }
+
         let menu = NSMenu()
-        fiveHourItem.isEnabled = false
-        weeklyItem.isEnabled = false
+        let visualItem = NSMenuItem()
+        visualItem.view = contentView
+        visualItem.isEnabled = false
+
         errorItem.isEnabled = false
         errorItem.isHidden = true
 
-        menu.addItem(fiveHourItem)
-        menu.addItem(weeklyItem)
+        menu.addItem(visualItem)
         menu.addItem(errorItem)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "刷新", action: #selector(refresh), keyEquivalent: "r"))
@@ -49,19 +59,11 @@ final class StatusBarController: NSObject, RateLimitServiceObserver {
         }
     }
 
-    @objc private func refresh() {
-        service.refresh()
-    }
-
-    @objc private func quit() {
-        NSApplication.shared.terminate(nil)
-    }
-
     private func render(state: RateLimitDisplayState, error: Error?) {
         statusItem.button?.title = "Codex \(Int(state.fiveHour.remainingPercent.rounded()))% / \(Int(state.weekly.remainingPercent.rounded()))%"
         debugLog("[Quota] status updated: fiveHour=\(Int(state.fiveHour.remainingPercent.rounded())) weekly=\(Int(state.weekly.remainingPercent.rounded()))")
-        fiveHourItem.title = title(for: state.fiveHour)
-        weeklyItem.title = title(for: state.weekly)
+
+        contentView.update(with: state)
 
         if let error {
             debugLog("[Quota] refresh failed: \(error.localizedDescription)")
@@ -72,7 +74,12 @@ final class StatusBarController: NSObject, RateLimitServiceObserver {
         }
     }
 
-    private func title(for window: LimitWindowDisplay) -> String {
-        "\(window.title)：剩余 \(Int(window.remainingPercent.rounded()))%，\(window.resetText)"
+    @objc private func refresh() {
+        service.refresh()
     }
+
+    @objc private func quit() {
+        NSApplication.shared.terminate(nil)
+    }
+
 }

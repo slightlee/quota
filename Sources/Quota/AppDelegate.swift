@@ -4,7 +4,7 @@ import AppKit
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let client = CodexAppServerClient()
     private lazy var rateLimitService = RateLimitService(client: client)
-    private lazy var statusBarController = StatusBarController(service: rateLimitService)
+    private lazy var statusBarController = StatusBarController(service: rateLimitService, client: client)
     private lazy var touchBarController = TouchBarController(service: rateLimitService, client: client)
 
     func applicationDidFinishLaunching(_ notification: Notification) {

@@ -12,7 +12,7 @@ final class CodexAppServerClient {
         var error: RPCError?
     }
 
-    private let codexURL = URL(fileURLWithPath: "/Applications/Codex.app/Contents/Resources/codex")
+    private let codexURL: URL
     private let proxySettingsStore: ProxySettingsStore
     private let queue = DispatchQueue(label: "CodexAppServerClient")
     private let decoder = JSONDecoder()
@@ -45,6 +45,57 @@ final class CodexAppServerClient {
 
     init(proxySettingsStore: ProxySettingsStore = .shared) {
         self.proxySettingsStore = proxySettingsStore
+        self.codexURL = Self.findCodexBinary()
+    }
+
+    /// 按优先级查找 codex 二进制：CLI > Codex.app
+    private static func findCodexBinary() -> URL {
+        // 1. 优先使用 CLI（通过 which 查找）
+        if let cliPath = findCLI() {
+            debugLog("[Quota] found CLI codex at \(cliPath)")
+            return cliPath
+        }
+
+        // 2. 回退到 Codex.app 内置二进制
+        let appPath = URL(fileURLWithPath: "/Applications/Codex.app/Contents/Resources/codex")
+        if FileManager.default.isExecutableFile(atPath: appPath.path) {
+            debugLog("[Quota] found Codex.app binary at \(appPath.path)")
+            return appPath
+        }
+
+        // 都没找到，返回默认路径（ensureStarted 会报错）
+        debugLog("[Quota] no codex binary found")
+        return appPath
+    }
+
+    /// 通过 which 命令查找 CLI 路径
+    private static func findCLI() -> URL? {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/which")
+        task.arguments = ["codex"]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+        } catch {
+            return nil
+        }
+
+        guard task.terminationStatus == 0 else { return nil }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+              !output.isEmpty else {
+            return nil
+        }
+
+        let url = URL(fileURLWithPath: output)
+        return FileManager.default.isExecutableFile(atPath: url.path) ? url : nil
     }
 
     func readRateLimits(completion: @escaping (Result<GetAccountRateLimitsResponse, Error>) -> Void) {

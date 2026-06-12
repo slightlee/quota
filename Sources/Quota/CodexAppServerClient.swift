@@ -31,6 +31,14 @@ final class CodexAppServerClient {
     private var accountPending: [(Result<AccountInfo, Error>) -> Void] = []
     private var accountLoading = false
     private var processGeneration = 0
+    private static let managedProcessRecordURL: URL = {
+        let fileManager = FileManager.default
+        let baseDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? fileManager.temporaryDirectory
+        let quotaDirectory = baseDirectory.appendingPathComponent("Quota", isDirectory: true)
+        try? fileManager.createDirectory(at: quotaDirectory, withIntermediateDirectories: true)
+        return quotaDirectory.appendingPathComponent("app-server.pid")
+    }()
 
     init(proxySettingsStore: ProxySettingsStore = .shared) {
         self.proxySettingsStore = proxySettingsStore
@@ -138,6 +146,8 @@ final class CodexAppServerClient {
             accountPending.removeAll()
             accountLoading = false
         }
+
+        Self.clearManagedProcessRecord()
     }
 
     private func failInitQueue(_ error: Error) {
@@ -178,6 +188,9 @@ final class CodexAppServerClient {
             completion(.failure(CodexQuotaError.codexBinaryMissing))
             return
         }
+
+        // 只回收 Quota 自己上次遗留的 app-server 记录
+        Self.cleanupManagedOrphanIfNeeded()
 
         do {
             if process == nil {
@@ -262,6 +275,7 @@ final class CodexAppServerClient {
         do {
             try process.run()
             self.process = process
+            Self.storeManagedProcessRecord(pid: Int(process.processIdentifier))
         } catch {
             stdin = nil
             stdout = nil
@@ -395,6 +409,83 @@ final class CodexAppServerClient {
         } else {
             environment["no_proxy"] = bypass
         }
+    }
+
+    // MARK: - 受管进程恢复
+
+    /// 只清理 Quota 自己上次写下的 app-server PID 记录。
+    ///
+    /// 仅当该 PID 仍然对应 `codex app-server --listen stdio://` 且父进程已死亡时才会终止。
+    private static func cleanupManagedOrphanIfNeeded() {
+        let recordURL = managedProcessRecordURL
+        guard let rawValue = try? String(contentsOf: recordURL, encoding: .utf8),
+              let pid = Int(rawValue.trimmingCharacters(in: .whitespacesAndNewlines)),
+              pid > 0 else {
+            return
+        }
+
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/bin/ps")
+        task.arguments = ["-p", "\(pid)", "-o", "pid=,ppid=,command="]
+
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+
+        do {
+            try task.run()
+            task.waitUntilExit()
+        } catch {
+            clearManagedProcessRecord()
+            return
+        }
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let output = String(data: data, encoding: .utf8) else {
+            clearManagedProcessRecord()
+            return
+        }
+
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            clearManagedProcessRecord()
+            return
+        }
+
+        let fields = trimmed.split(whereSeparator: { $0.isWhitespace })
+        guard fields.count >= 3,
+              let reportedPID = Int(fields[0]),
+              let ppid = Int(fields[1]),
+              reportedPID == pid else {
+            clearManagedProcessRecord()
+            return
+        }
+
+        let command = fields.dropFirst(2).joined(separator: " ")
+        guard command.contains("codex") && command.contains("app-server") && command.contains("stdio://") else {
+            clearManagedProcessRecord()
+            return
+        }
+
+        guard ppid == 1 else {
+            return
+        }
+
+        kill(pid_t(pid), SIGTERM)
+        debugLog("[Quota] killed managed orphaned app-server pid=\(pid)")
+        clearManagedProcessRecord()
+    }
+
+    private static func storeManagedProcessRecord(pid: Int) {
+        do {
+            try "\(pid)".write(to: managedProcessRecordURL, atomically: true, encoding: .utf8)
+        } catch {
+            debugLog("[Quota] failed to persist app-server pid: \(error.localizedDescription)")
+        }
+    }
+
+    private static func clearManagedProcessRecord() {
+        try? FileManager.default.removeItem(at: managedProcessRecordURL)
     }
 
     private func send(

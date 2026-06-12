@@ -31,6 +31,9 @@ final class CodexAppServerClient {
     private var accountPending: [(Result<AccountInfo, Error>) -> Void] = []
     private var accountLoading = false
     private var processGeneration = 0
+    private var reconnectTimer: DispatchSourceTimer?
+    private var reconnectDelay: TimeInterval = 1
+    private static let maxReconnectDelay: TimeInterval = 30
     private static let managedProcessRecordURL: URL = {
         let fileManager = FileManager.default
         let baseDirectory = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
@@ -76,6 +79,9 @@ final class CodexAppServerClient {
 
     func stop(notifyPending: Bool = true) {
         queue.async {
+            self.reconnectTimer?.cancel()
+            self.reconnectTimer = nil
+            self.reconnectDelay = 1
             self.teardownProcess(error: CodexQuotaError.invalidResponse, notifyPending: notifyPending)
         }
     }
@@ -170,6 +176,35 @@ final class CodexAppServerClient {
         callbacks.forEach { $0(result) }
     }
 
+    /// 进程异常退出后自动重连，指数退避（1s → 2s → 4s → ... → 30s）
+    private func scheduleReconnect() {
+        reconnectTimer?.cancel()
+
+        let delay = reconnectDelay
+        debugLog("[Quota] scheduling reconnect in \(Int(delay))s")
+
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now() + delay)
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            self.reconnectTimer = nil
+            // 重连时通过 ensureStarted 重新启动进程
+            self.ensureStarted { result in
+                switch result {
+                case .success:
+                    debugLog("[Quota] auto-reconnect succeeded")
+                    self.reconnectDelay = 1  // 成功后重置退避
+                case .failure:
+                    // 失败后继续退避重连
+                    self.reconnectDelay = min(self.reconnectDelay * 2, Self.maxReconnectDelay)
+                    self.scheduleReconnect()
+                }
+            }
+        }
+        timer.resume()
+        reconnectTimer = timer
+    }
+
     private func ensureStarted(completion: @escaping (Result<Void, Error>) -> Void) {
         if initialized {
             completion(.success(()))
@@ -249,6 +284,7 @@ final class CodexAppServerClient {
                 debugLog("[Quota] app-server terminated")
                 guard let self, self.processGeneration == generation else { return }
                 self.teardownProcess(error: CodexQuotaError.invalidResponse, notifyPending: true)
+                self.scheduleReconnect()
             }
         }
 
@@ -301,10 +337,16 @@ final class CodexAppServerClient {
             if !proxyURL.isEmpty {
                 Self.applyProxy(proxyURL, to: &environment)
             }
+            // 清除 automatic 模式可能残留的 bypass 列表
+            environment.removeValue(forKey: "NO_PROXY")
+            environment.removeValue(forKey: "no_proxy")
         case .disabled:
             for key in proxyKeys {
                 environment.removeValue(forKey: key)
             }
+            // 显式设置 NO_PROXY=* 确保子进程跳过所有代理
+            environment["NO_PROXY"] = "*"
+            environment["no_proxy"] = "*"
         }
 
         return environment

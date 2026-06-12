@@ -10,14 +10,19 @@ protocol RateLimitServiceObserver: AnyObject {
 final class RateLimitService {
     private let client: CodexAppServerClient
     private let refreshInterval: TimeInterval
+    private let refreshTimeout: TimeInterval
     private var timer: Timer?
+    private var refreshTimeoutTimer: Timer?
     private var observers = NSHashTable<AnyObject>.weakObjects()
     private var isRefreshing = false
+    /// 每次 refresh 递增，超时或新请求后旧回调自动失效
+    private var refreshGeneration = 0
     private(set) var state: RateLimitDisplayState?
 
-    init(client: CodexAppServerClient, refreshInterval: TimeInterval = 120) {
+    init(client: CodexAppServerClient, refreshInterval: TimeInterval = 120, refreshTimeout: TimeInterval = 30) {
         self.client = client
         self.refreshInterval = refreshInterval
+        self.refreshTimeout = refreshTimeout
     }
 
     func addObserver(_ observer: RateLimitServiceObserver) {
@@ -42,10 +47,15 @@ final class RateLimitService {
     func stop() {
         timer?.invalidate()
         timer = nil
+        refreshTimeoutTimer?.invalidate()
+        refreshTimeoutTimer = nil
     }
 
     func reconnectAndRefresh() {
         isRefreshing = false
+        refreshGeneration &+= 1  // 使旧回调失效
+        refreshTimeoutTimer?.invalidate()
+        refreshTimeoutTimer = nil
         refresh()
     }
 
@@ -53,10 +63,14 @@ final class RateLimitService {
         guard !isRefreshing else { return }
 
         isRefreshing = true
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
+        startRefreshTimeout()
         debugLog("[Quota] refreshing rate limits")
         client.readRateLimits { [weak self] result in
             DispatchQueue.main.async {
-                guard let self else { return }
+                guard let self, self.refreshGeneration == generation else { return }
+                self.cancelRefreshTimeout()
                 self.isRefreshing = false
 
                 switch result {
@@ -74,6 +88,25 @@ final class RateLimitService {
                 }
             }
         }
+    }
+
+    /// 超时保护：如果回调迟迟不来，强制重置 isRefreshing
+    private func startRefreshTimeout() {
+        refreshTimeoutTimer?.invalidate()
+        refreshTimeoutTimer = Timer.scheduledTimer(withTimeInterval: refreshTimeout, repeats: false) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                if self.isRefreshing {
+                    debugLog("[Quota] refresh timed out after \(Int(self.refreshTimeout))s, force resetting")
+                    self.isRefreshing = false
+                }
+            }
+        }
+    }
+
+    private func cancelRefreshTimeout() {
+        refreshTimeoutTimer?.invalidate()
+        refreshTimeoutTimer = nil
     }
 
     private func notifyUpdate(_ state: RateLimitDisplayState) {

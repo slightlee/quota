@@ -70,8 +70,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @preconcurrency UNUser
     }
 
     private func proxySettingsDidChange() {
-        client.stop(notifyPending: false)
-        loadAccountMetadata()
-        rateLimitService.reconnectAndRefresh()
+        client.stop(notifyPending: false)      // 杀旧进程
+        loadAccountMetadata()                   // 读账户信息（ensureStarted 会启动新进程）
+        rateLimitService.reconnectAndRefresh()  // 刷新配额（ensureStarted 有守卫，不会重复启动）
     }
 }

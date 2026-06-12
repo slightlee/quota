@@ -67,7 +67,7 @@ final class MenuBarLimitView: NSView {
         ]
         let remainAttr: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(ofSize: 10, weight: .regular),
-            .foregroundColor: NSColor.secondaryLabelColor
+            .foregroundColor: NSColor.labelColor
         ]
         let percentAttr: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .semibold),
@@ -114,7 +114,7 @@ final class MenuBarLimitView: NSView {
         // Reset time
         let resetAttr: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular),
-            .foregroundColor: NSColor.secondaryLabelColor
+            .foregroundColor: NSColor.labelColor
         ]
         data.resetText.draw(at: NSPoint(x: barX, y: barY - 16), withAttributes: resetAttr)
     }

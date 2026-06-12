@@ -5,26 +5,28 @@ final class TouchBarController: NSObject, NSTouchBarDelegate, RateLimitServiceOb
     private let service: RateLimitService
     private let workspace: NSWorkspace
     private let presentationPolicy: ActiveApplicationTouchBarPolicy
-    private let itemIdentifier = NSTouchBarItem.Identifier("com.openai.codex.touchbar.quota")
-    private let trayIdentifier = "com.openai.codex.touchbar.quota.tray"
+    private let presenter: SystemModalTouchBarPresenter
     private let contentView = TouchBarLimitView(frame: NSRect(x: 0, y: 0, width: 450, height: 26))
     private var activeApplicationObserver: NSObjectProtocol?
-    private var isPresented = false
     private lazy var touchBar: NSTouchBar = {
         let touchBar = NSTouchBar()
         touchBar.delegate = self
-        touchBar.defaultItemIdentifiers = [itemIdentifier]
+        touchBar.defaultItemIdentifiers = [Self.itemIdentifier]
         return touchBar
     }()
+    private static let itemIdentifier = NSTouchBarItem.Identifier("com.openai.codex.touchbar.quota")
+    private static let trayIdentifier = "com.openai.codex.touchbar.quota.tray"
 
     init(
         service: RateLimitService,
         workspace: NSWorkspace = .shared,
-        presentationPolicy: ActiveApplicationTouchBarPolicy = ActiveApplicationTouchBarPolicy()
+        presentationPolicy: ActiveApplicationTouchBarPolicy = ActiveApplicationTouchBarPolicy(),
+        presenter: SystemModalTouchBarPresenter? = nil
     ) {
         self.service = service
         self.workspace = workspace
         self.presentationPolicy = presentationPolicy
+        self.presenter = presenter ?? SystemModalTouchBarPresenter(trayIdentifier: Self.trayIdentifier)
     }
 
     func start() {
@@ -38,7 +40,7 @@ final class TouchBarController: NSObject, NSTouchBarDelegate, RateLimitServiceOb
     }
 
     func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
-        guard identifier == itemIdentifier else { return nil }
+        guard identifier == Self.itemIdentifier else { return nil }
 
         let item = NSCustomTouchBarItem(identifier: identifier)
         item.view = contentView
@@ -90,40 +92,9 @@ final class TouchBarController: NSObject, NSTouchBarDelegate, RateLimitServiceOb
 
     private func updatePresentation(for application: ActiveApplicationInfo) {
         if presentationPolicy.shouldShow(for: application) {
-            presentSystemModalTouchBar()
+            presenter.present(touchBar)
         } else {
-            dismissSystemModalTouchBar()
+            presenter.dismiss(touchBar)
         }
-    }
-
-    private func presentSystemModalTouchBar() {
-        guard !isPresented else { return }
-
-        let selector = NSSelectorFromString("presentSystemModalTouchBar:systemTrayItemIdentifier:")
-        guard NSTouchBar.responds(to: selector) else {
-            debugLog("[Quota] private Touch Bar selector unavailable on NSTouchBar")
-            return
-        }
-
-        debugLog("[Quota] invoking private Touch Bar selector")
-        let touchBarClass: AnyObject = NSTouchBar.self
-        _ = touchBarClass.perform(selector, with: touchBar, with: trayIdentifier as NSString)
-        isPresented = true
-    }
-
-    private func dismissSystemModalTouchBar() {
-        guard isPresented else { return }
-
-        let selector = NSSelectorFromString("dismissSystemModalTouchBar:")
-        guard NSTouchBar.responds(to: selector) else {
-            debugLog("[Quota] private Touch Bar dismiss selector unavailable on NSTouchBar")
-            isPresented = false
-            return
-        }
-
-        debugLog("[Quota] dismissing private Touch Bar")
-        let touchBarClass: AnyObject = NSTouchBar.self
-        _ = touchBarClass.perform(selector, with: touchBar)
-        isPresented = false
     }
 }

@@ -11,8 +11,9 @@ final class RateLimitService {
     private let client: CodexAppServerClient
     private let refreshInterval: TimeInterval
     private let refreshTimeout: TimeInterval
-    private var timer: Timer?
-    private var refreshTimeoutTimer: Timer?
+    private let mainQueue = DispatchQueue.main
+    private var refreshTimer: DispatchSourceTimer?
+    private var refreshTimeoutTimer: DispatchSourceTimer?
     private var observers = NSHashTable<AnyObject>.weakObjects()
     private var isRefreshing = false
     /// 每次 refresh 递增，超时或新请求后旧回调自动失效
@@ -33,28 +34,31 @@ final class RateLimitService {
     }
 
     func start() {
-        guard timer == nil else { return }
+        guard refreshTimer == nil else { return }
 
         debugLog("[Quota] rate-limit refresh started")
         refresh()
-        timer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.refresh()
-            }
+
+        let timer = DispatchSource.makeTimerSource(queue: mainQueue)
+        timer.schedule(deadline: .now() + refreshInterval, repeating: refreshInterval)
+        timer.setEventHandler { [weak self] in
+            self?.refresh()
         }
+        timer.resume()
+        refreshTimer = timer
     }
 
     func stop() {
-        timer?.invalidate()
-        timer = nil
-        refreshTimeoutTimer?.invalidate()
+        refreshTimer?.cancel()
+        refreshTimer = nil
+        refreshTimeoutTimer?.cancel()
         refreshTimeoutTimer = nil
     }
 
     func reconnectAndRefresh() {
         isRefreshing = false
-        refreshGeneration &+= 1  // 使旧回调失效
-        refreshTimeoutTimer?.invalidate()
+        refreshGeneration &+= 1
+        refreshTimeoutTimer?.cancel()
         refreshTimeoutTimer = nil
         refresh()
     }
@@ -92,20 +96,22 @@ final class RateLimitService {
 
     /// 超时保护：如果回调迟迟不来，强制重置 isRefreshing
     private func startRefreshTimeout() {
-        refreshTimeoutTimer?.invalidate()
-        refreshTimeoutTimer = Timer.scheduledTimer(withTimeInterval: refreshTimeout, repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                guard let self else { return }
-                if self.isRefreshing {
-                    debugLog("[Quota] refresh timed out after \(Int(self.refreshTimeout))s, force resetting")
-                    self.isRefreshing = false
-                }
+        refreshTimeoutTimer?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: mainQueue)
+        timer.schedule(deadline: .now() + refreshTimeout)
+        timer.setEventHandler { [weak self] in
+            guard let self else { return }
+            if self.isRefreshing {
+                debugLog("[Quota] refresh timed out after \(Int(self.refreshTimeout))s, force resetting")
+                self.isRefreshing = false
             }
         }
+        timer.resume()
+        refreshTimeoutTimer = timer
     }
 
     private func cancelRefreshTimeout() {
-        refreshTimeoutTimer?.invalidate()
+        refreshTimeoutTimer?.cancel()
         refreshTimeoutTimer = nil
     }
 

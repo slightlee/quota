@@ -7,12 +7,17 @@ PACKAGE_SCRIPT="$ROOT_DIR/Scripts/package-app.sh"
 STAGING_DIR="$ROOT_DIR/.build/dmg-staging"
 DMG_DIR="$ROOT_DIR/.build"
 VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$ROOT_DIR/Packaging/Info.plist")
-DMG_NAME="$APP_NAME-$VERSION.dmg"
+DMG_SUFFIX="${DMG_SUFFIX:-}"
+if [[ -n "$DMG_SUFFIX" ]]; then
+  DMG_NAME="$APP_NAME-$VERSION-$DMG_SUFFIX.dmg"
+else
+  DMG_NAME="$APP_NAME-$VERSION.dmg"
+fi
 DMG_PATH="$DMG_DIR/$DMG_NAME"
 
 # ── 1. 构建 .app ──
 echo "▸ Building $APP_NAME.app ..."
-bash "$PACKAGE_SCRIPT"
+SKIP_SWIFT_BUILD=1 bash "$PACKAGE_SCRIPT"
 
 APP_DIR="$ROOT_DIR/.build/package/$APP_NAME.app"
 if [[ ! -d "$APP_DIR" ]]; then

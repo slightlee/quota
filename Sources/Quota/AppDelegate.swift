@@ -2,7 +2,7 @@ import AppKit
 import UserNotifications
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate, @preconcurrency UNUserNotificationCenterDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private let proxySettingsStore = ProxySettingsStore.shared
     private lazy var client = CodexAppServerClient(proxySettingsStore: proxySettingsStore)
     private lazy var rateLimitService = RateLimitService(client: client)
@@ -40,7 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, @preconcurrency UNUser
     // MARK: - UNUserNotificationCenterDelegate
 
     /// 前台时也展示通知（菜单栏应用常驻运行，需要此回调）
-    func userNotificationCenter(
+    nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void

@@ -36,4 +36,7 @@ for resource_bundle in "$BUILD_DIR"/*.resources; do
   cp -R "$resource_bundle" "$APP_DIR/Contents/Resources/"
 done
 
+# Ad-hoc 签名（macOS 通知系统要求 app 有签名才能注册）
+codesign --force --deep --sign - "$APP_DIR"
+
 echo "$APP_DIR"

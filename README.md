@@ -9,27 +9,15 @@
 </p>
 
 > [!NOTE]
-> 本项目需要已安装 Codex CLI（`/Applications/Codex.app`），且账户需有有效的 rate limit 配额。
+> 本项目需要已安装 Codex CLI 或 Codex.app（二选一即可），且账户需有有效的 rate limit 配额。
 
 ## 特性
 
-- 菜单栏实时展示 5 小时窗口和周限额的剩余百分比
-- Touch Bar 以分段进度条展示两个窗口的剩余情况
+- 菜单栏图标快速查看 Codex 配额详情
+- Terminal 或 Codex 前台时，在 Touch Bar 展示 5 小时窗口和周限额
 - 每 2 分钟自动刷新，也支持手动刷新
 - 以 accessory 模式运行，不占 Dock 栏
-- 通过 Codex CLI 的 `app-server` 读取数据
-
-## 截图
-
-<!-- 替换为实际截图 -->
-
-| 菜单栏 | Touch Bar |
-|:---:|:---:|
-| `Codex 72% / 85%` | ██████████░░░░░ 5 小时 |
-| | ████████████████ 周限额 |
-
-- 菜单栏显示 5 小时窗口 / 周限额的剩余百分比
-- Touch Bar 以分段进度条可视化展示，颜色随余量变化（绿 → 橙 → 红）
+- 通过 Codex 的 `app-server` 读取数据，优先使用 PATH 中的 `codex` CLI，找不到时回退到 `/Applications/Codex.app`
 
 ## 安装
 
@@ -56,18 +44,21 @@ bash Scripts/package-app.sh
 
 ## 使用
 
-启动后菜单栏会出现 `Codex --%`，稍等片刻自动获取数据。
+启动后菜单栏会出现 Quota 图标，稍等片刻自动获取数据。
 
-- **查看详细配额** — 点击菜单栏图标
-- **手动刷新** — 菜单中点击「刷新」或按 `⌘R`
-- **退出** — 菜单中点击「退出」或按 `⌘Q`
+- 点击菜单栏图标查看 5 小时窗口和周限额
+- 点击「刷新」或按 `⌘R` 手动刷新
+- 点击「代理设置...」配置连接代理
+- 点击「退出」或按 `⌘Q` 退出
+
+Touch Bar 只在 Terminal 或 Codex 前台时显示，切换到其他应用后会隐藏。
 
 ## 工作原理
 
 ```
 ┌──────────────┐     JSON-RPC (stdio)     ┌──────────────┐
 │              │ ◄──────────────────────► │              │
-│    Quota     │   account/rateLimits/    │  Codex CLI   │
+│    Quota     │   account/rateLimits/    │    Codex     │
 │              │         read             │ (app-server) │
 └──────┬───────┘                          └──────────────┘
        │
@@ -78,13 +69,12 @@ bash Scripts/package-app.sh
  └──────────────────────────┘   └──────────────────────┘
 ```
 
-Quota 启动 Codex CLI 的 app-server 子进程，通过 stdin/stdout 以 JSON-RPC 协议读取配额数据，每 2 分钟轮询一次。
-菜单栏由 `MenuBarController` + `MenuBarLimitView` 负责，Touch Bar 由 `TouchBarController` + `TouchBarLimitView` 负责。
+Quota 启动 Codex 的 app-server 子进程，通过 stdin/stdout 以 JSON-RPC 协议读取配额数据，每 2 分钟轮询一次。
 
 ## 系统要求
 
 - macOS 14 (Sonoma) 或更高版本
-- [Codex CLI](https://github.com/openai/codex) 已安装
+- [Codex CLI](https://github.com/openai/codex) 或 Codex.app 已安装（二选一即可）
 
 ## 开发
 

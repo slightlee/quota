@@ -35,6 +35,19 @@ private enum NotifyThreshold: Int, CaseIterable, Comparable {
     }
 }
 
+/// 系统通知授权状态。
+private enum NotificationAuthorizationState {
+    case pending
+    case authorized
+    case denied
+}
+
+private struct PendingNotification {
+    var content: UNMutableNotificationContent
+    var fiveCrossed: [NotifyThreshold]
+    var weeklyCrossed: [NotifyThreshold]
+}
+
 // MARK: - QuotaNotificationManager
 
 /// 低配额通知管理器
@@ -46,8 +59,10 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
     /// 是否运行在 .app bundle 中（UNUserNotificationCenter 需要 bundle 环境）
     private let available: Bool
     private let center: UNUserNotificationCenter?
-    /// 用户是否已授权通知（异步设置）
-    private var authorized = false
+    /// 用户通知授权状态；首次安装启动时授权请求是异步完成的。
+    private var authorizationState: NotificationAuthorizationState = .pending
+    private var pendingNotification: PendingNotification?
+    private var hasPromptedEnableNotifications = false
 
     /// 每个窗口已通知的最高阈值
     private var fiveHourNotified: NotifyThreshold?
@@ -90,7 +105,7 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
         let fiveRemaining = state.fiveHour.remainingPercent
         let weeklyRemaining = state.weekly.remainingPercent
 
-        debugLog("[Quota] checkAndNotify: 5h=\(Int(fiveRemaining))%, weekly=\(Int(weeklyRemaining))%, authorized=\(authorized)")
+        debugLog("[Quota] checkAndNotify: 5h=\(Int(fiveRemaining))%, weekly=\(Int(weeklyRemaining))%, authorization=\(authorizationState)")
 
         // 配额恢复检测：剩余超过 50% 说明已进入新窗口
         if fiveRemaining > 50 {
@@ -124,16 +139,16 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
             weeklyCrossed: weeklyCrossed,
             severity: maxThreshold
         )
-        debugLog("[Quota] scheduling notification: title=\(content.title)")
-        scheduleNotification(content: content) { [weak self] delivered in
-            guard let self, delivered else { return }
+        let pending = PendingNotification(
+            content: content,
+            fiveCrossed: fiveCrossed,
+            weeklyCrossed: weeklyCrossed
+        )
 
-            if let highest = fiveCrossed.max() {
-                self.fiveHourNotified = highest
-            }
-            if let highest = weeklyCrossed.max() {
-                self.weeklyNotified = highest
-            }
+        debugLog("[Quota] scheduling notification: title=\(content.title)")
+        scheduleNotification(pending) { [weak self] delivered in
+            guard let self, delivered else { return }
+            self.markDelivered(pending)
         }
     }
 
@@ -219,10 +234,12 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
     // MARK: - 发送通知
 
     private func scheduleNotification(
-        content: UNMutableNotificationContent,
+        _ pending: PendingNotification,
         completion: @escaping (Bool) -> Void
     ) {
-        if let center, authorized {
+        let content = pending.content
+
+        if let center, authorizationState == .authorized {
             debugLog("[Quota] sending via UNUserNotificationCenter...")
             let request = UNNotificationRequest(
                 identifier: "quota-low-\(UUID().uuidString)",
@@ -241,15 +258,82 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
                     }
                 }
             }
-        } else if available && !authorized {
-            debugLog("[Quota] notification skipped: not authorized")
+        } else if available && authorizationState == .pending {
+            debugLog("[Quota] notification authorization pending, defer delivery")
+            pendingNotification = pending
             completion(false)
+        } else if available {
+            debugLog("[Quota] notification not authorized, rechecking system settings")
+            recheckAuthorizationAndSchedule(pending, completion: completion)
         } else {
             debugLog("[Quota] ── 通知预览 ──")
             debugLog("[Quota] 标题: \(content.title)")
             debugLog("[Quota] 正文: \(content.body)")
             debugLog("[Quota] ────────────")
             completion(true)
+        }
+    }
+
+    private func recheckAuthorizationAndSchedule(
+        _ pending: PendingNotification,
+        completion: @escaping (Bool) -> Void
+    ) {
+        guard let center else {
+            promptEnableNotificationsIfNeeded()
+            completion(false)
+            return
+        }
+
+        center.getNotificationSettings { [weak self] settings in
+            DispatchQueue.main.async {
+                guard let self else {
+                    completion(false)
+                    return
+                }
+
+                self.authorizationState = Self.authorizationState(from: settings.authorizationStatus)
+                debugLog("[Quota] notification authorization recheck: \(settings.authorizationStatus)")
+
+                if self.authorizationState == .authorized {
+                    self.scheduleNotification(pending, completion: completion)
+                } else {
+                    self.promptEnableNotificationsIfNeeded()
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    private func deliverPendingNotificationIfNeeded() {
+        guard let pendingNotification else { return }
+
+        self.pendingNotification = nil
+        debugLog("[Quota] delivering deferred notification: title=\(pendingNotification.content.title)")
+        scheduleNotification(pendingNotification) { [weak self] delivered in
+            guard let self, delivered else { return }
+            self.markDelivered(pendingNotification)
+        }
+    }
+
+    private func markDelivered(_ pending: PendingNotification) {
+        if let highest = pending.fiveCrossed.max() {
+            fiveHourNotified = highest
+        }
+        if let highest = pending.weeklyCrossed.max() {
+            weeklyNotified = highest
+        }
+    }
+
+    private static func authorizationState(from status: UNAuthorizationStatus) -> NotificationAuthorizationState {
+        switch status {
+        case .authorized, .provisional, .ephemeral:
+            return .authorized
+        case .denied:
+            return .denied
+        case .notDetermined:
+            return .pending
+        @unknown default:
+            return .denied
         }
     }
 
@@ -260,32 +344,45 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
         center.getNotificationSettings { [weak self] settings in
             guard let self else { return }
 
-            if settings.authorizationStatus == .denied {
+            switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
                 DispatchQueue.main.async {
-                    self.authorized = false
-                    self.promptEnableNotifications()
+                    self.authorizationState = Self.authorizationState(from: settings.authorizationStatus)
+                    self.deliverPendingNotificationIfNeeded()
                 }
-                return
-            }
-
-            // 未决定或已授权，走正常请求流程
-            center.requestAuthorization(options: [.alert, .sound]) { [weak self] granted, error in
+            case .denied:
                 DispatchQueue.main.async {
-                    guard let self else { return }
+                    self.authorizationState = Self.authorizationState(from: settings.authorizationStatus)
+                }
+            case .notDetermined:
+                center.requestAuthorization(options: [.alert, .sound]) { [weak self] granted, error in
+                    DispatchQueue.main.async {
+                        guard let self else { return }
 
-                    if let error {
-                        debugLog("[Quota] notification authorization error: \(error.localizedDescription)")
+                        if let error {
+                            debugLog("[Quota] notification authorization error: \(error.localizedDescription)")
+                        }
+
+                        self.authorizationState = granted ? .authorized : .denied
+                        debugLog("[Quota] notification authorization: \(granted ? "granted" : "denied")")
+
+                        if granted {
+                            self.deliverPendingNotificationIfNeeded()
+                        }
                     }
-
-                    self.authorized = granted
-                    debugLog("[Quota] notification authorization: \(granted ? "granted" : "denied")")
-
-                    if !granted {
-                        self.promptEnableNotifications()
-                    }
+                }
+            @unknown default:
+                DispatchQueue.main.async {
+                    self.authorizationState = .denied
                 }
             }
         }
+    }
+
+    private func promptEnableNotificationsIfNeeded() {
+        guard !hasPromptedEnableNotifications else { return }
+        hasPromptedEnableNotifications = true
+        promptEnableNotifications()
     }
 
     /// 弹窗提示用户开启通知权限

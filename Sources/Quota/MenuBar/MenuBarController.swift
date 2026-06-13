@@ -99,9 +99,11 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
     }
 
     private func loadStatusImage() -> NSImage? {
-        guard let image = Bundle.module
+        let imageURL = Bundle.main
             .url(forResource: "MenuBarIcon", withExtension: "png")
-            .flatMap(NSImage.init(contentsOf:)) else {
+            ?? Bundle.module.url(forResource: "MenuBarIcon", withExtension: "png")
+
+        guard let image = imageURL.flatMap(NSImage.init(contentsOf:)) else {
             return nil
         }
 

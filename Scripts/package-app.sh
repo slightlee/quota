@@ -7,6 +7,7 @@ APP_DIR="$ROOT_DIR/.build/package/$APP_NAME.app"
 INFO_PLIST="$ROOT_DIR/Packaging/Info.plist"
 ICONSET_DIR="$ROOT_DIR/Assets/AppIcon.iconset"
 ICON_FILE="$APP_DIR/Contents/Resources/AppIcon.icns"
+MENU_BAR_ICON="$ROOT_DIR/Sources/Quota/Resources/MenuBarIcon.png"
 
 # 支持 universal binary 路径（--arch 构建）和默认路径
 BUILD_DIR="$ROOT_DIR/.build/apple/Products/Release"
@@ -33,6 +34,7 @@ rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 
 cp "$INFO_PLIST" "$APP_DIR/Contents/Info.plist"
+printf "APPL????" > "$APP_DIR/Contents/PkgInfo"
 cp "$EXECUTABLE" "$APP_DIR/Contents/MacOS/$APP_NAME"
 chmod 755 "$APP_DIR/Contents/MacOS/$APP_NAME"
 
@@ -43,18 +45,13 @@ else
   exit 1
 fi
 
-# 搜索 SwiftPM 资源包（.bundle 或 .resources）
-RESOURCE_BUNDLE="$(find "$ROOT_DIR/.build" -type d \( -name "${APP_NAME}_*.bundle" -o -name "${APP_NAME}_*.resources" \) -path "*/release/*" | head -n 1)"
-if [[ -z "$RESOURCE_BUNDLE" ]]; then
-  RESOURCE_BUNDLE="$(find "$ROOT_DIR/.build" -type d \( -name "${APP_NAME}_*.bundle" -o -name "${APP_NAME}_*.resources" \) | head -n 1)"
-fi
-if [[ -n "$RESOURCE_BUNDLE" && -d "$RESOURCE_BUNDLE" ]]; then
-  cp -R "$RESOURCE_BUNDLE" "$APP_DIR/"
+if [[ -f "$MENU_BAR_ICON" ]]; then
+  cp "$MENU_BAR_ICON" "$APP_DIR/Contents/Resources/MenuBarIcon.png"
 else
-  echo "Warning: no SwiftPM resource bundle found" >&2
+  echo "Missing menu bar icon: $MENU_BAR_ICON" >&2
+  exit 1
 fi
 
-# 注意：不签名整个 .app，因为 SwiftPM 资源包必须留在 .app 根目录
-# 签名会因 "unsealed contents" 报错。通知功能不依赖签名。
+codesign --force --deep --sign - "$APP_DIR"
 
 echo "$APP_DIR"

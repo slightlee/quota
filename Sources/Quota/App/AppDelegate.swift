@@ -24,6 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         debugLog("[Quota] launched")
+        configureApplicationIcon()
         setupNotifications()
         menuBarController.start()
         touchBarController.start()
@@ -44,6 +45,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             UNUserNotificationCenter.current().delegate = self
         }
         rateLimitService.addObserver(notificationManager)
+    }
+
+    private func configureApplicationIcon() {
+        guard let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+              let icon = NSImage(contentsOf: iconURL) else {
+            return
+        }
+
+        NSApplication.shared.applicationIconImage = icon
     }
 
     // MARK: - UNUserNotificationCenterDelegate

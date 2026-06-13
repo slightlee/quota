@@ -3,15 +3,15 @@ import AppKit
 @MainActor
 final class MenuBarController: NSObject, RateLimitServiceObserver {
     private let service: RateLimitService
-    private let showProxySettings: () -> Void
+    private let showSettings: () -> Void
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let contentView = MenuBarLimitView(frame: NSRect(x: 0, y: 0, width: 260, height: 105))
     private let errorItem = NSMenuItem()
     private var usesIconOnly = false
 
-    init(service: RateLimitService, showProxySettings: @escaping () -> Void) {
+    init(service: RateLimitService, showSettings: @escaping () -> Void) {
         self.service = service
-        self.showProxySettings = showProxySettings
+        self.showSettings = showSettings
     }
 
     func start() {
@@ -36,7 +36,7 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
         menu.addItem(visualItem)
         menu.addItem(errorItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "代理设置...", action: #selector(openProxySettings), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "设置", action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: "刷新", action: #selector(refresh), keyEquivalent: "r"))
         menu.addItem(NSMenuItem(title: "退出", action: #selector(quit), keyEquivalent: "q"))
         menu.items.forEach { $0.target = self }
@@ -85,8 +85,13 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
         service.refresh()
     }
 
-    @objc private func openProxySettings() {
-        showProxySettings()
+    @objc private func openSettings() {
+        showSettings()
+    }
+
+    /// Open the status item menu (used by global hotkey).
+    func showMenu() {
+        statusItem.button?.performClick(nil)
     }
 
     @objc private func quit() {

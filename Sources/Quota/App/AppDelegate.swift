@@ -4,14 +4,21 @@ import UserNotifications
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private let proxySettingsStore = ProxySettingsStore.shared
+    private let hotkeySettingsStore = HotkeySettingsStore.shared
+    private var currentProxyConfiguration = ProxySettingsStore.shared.configuration
+    private var currentHotkeyConfiguration = HotkeySettingsStore.shared.configuration
     private lazy var client = CodexAppServerClient(proxySettingsStore: proxySettingsStore)
     private lazy var rateLimitService = RateLimitService(client: client)
-    private lazy var proxySettingsWindowController = ProxySettingsWindowController(store: proxySettingsStore) { [weak self] _ in
-        self?.proxySettingsDidChange()
+    private lazy var settingsWindowController = SettingsWindowController(
+        proxyStore: proxySettingsStore,
+        hotkeyStore: hotkeySettingsStore
+    ) { [weak self] proxyConfig, hotkeyConfig in
+        self?.settingsDidSave(proxyConfig: proxyConfig, hotkeyConfig: hotkeyConfig)
     }
     private lazy var menuBarController = MenuBarController(service: rateLimitService) { [weak self] in
-        self?.showProxySettings()
+        self?.showSettings()
     }
+    private let hotkeyManager = GlobalHotkeyManager()
     private lazy var touchBarController = TouchBarController(service: rateLimitService)
     private lazy var notificationManager = QuotaNotificationManager()
 
@@ -22,10 +29,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         touchBarController.start()
         rateLimitService.start()
         loadAccountMetadata()
+        updateHotkeyRegistration(with: currentHotkeyConfiguration)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         debugLog("[Quota] terminating")
+        hotkeyManager.unregister()
         rateLimitService.stop()
         client.stop()
     }
@@ -48,8 +57,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         completionHandler([.banner, .sound])
     }
 
-    private func showProxySettings() {
-        proxySettingsWindowController.show()
+    private func showSettings() {
+        settingsWindowController.show()
+    }
+
+    private func updateHotkeyRegistration(with config: HotkeyConfiguration) {
+        hotkeyManager.unregister()
+        guard config.isEnabled, config.isValid else { return }
+        hotkeyManager.register(keyCode: config.keyCode, modifiers: config.modifiers) { [weak self] in
+            self?.menuBarController.showMenu()
+        }
+    }
+
+    private func settingsDidSave(proxyConfig: ProxyConfiguration, hotkeyConfig: HotkeyConfiguration) {
+        let proxyChanged = proxyConfig != currentProxyConfiguration
+        let hotkeyChanged = hotkeyConfig != currentHotkeyConfiguration
+
+        currentProxyConfiguration = proxyConfig
+        currentHotkeyConfiguration = hotkeyConfig
+
+        if proxyChanged {
+            proxySettingsDidChange()
+        }
+
+        if hotkeyChanged {
+            updateHotkeyRegistration(with: hotkeyConfig)
+        }
     }
 
     private func loadAccountMetadata() {

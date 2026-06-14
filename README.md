@@ -1,6 +1,8 @@
 # Quota
 
-在 macOS 菜单栏和 Touch Bar 实时查看 [Codex](https://github.com/openai/codex) 的用量配额。
+[简体中文](README.zh-CN.md)
+
+Quota is a lightweight macOS menu bar app for monitoring [Codex](https://github.com/openai/codex) rate limits.
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS%2014%2B-blue" alt="macOS 14+">
@@ -9,39 +11,40 @@
 </p>
 
 > [!NOTE]
-> 本项目需要已安装 Codex CLI 或 Codex.app（二选一即可），且账户需有有效的 rate limit 配额。
+> Quota requires Codex CLI or Codex.app, and your account must expose valid rate limit data.
 
-## 特性
+## Features
 
-- 菜单栏图标快速查看 Codex 配额详情
-- Terminal 或 Codex 前台时，在 Touch Bar 展示 5 小时窗口和周限额
-- 额度低于阈值时通过 macOS 通知提醒
-- 每 2 分钟自动刷新，也支持手动刷新
-- 支持代理配置和全局快捷键
-- 以 accessory 模式运行，不占 Dock 栏
-- 通过 Codex 的 `app-server` 读取数据，优先使用 PATH 中的 `codex` CLI，找不到时回退到 `/Applications/Codex.app`
+- Menu bar quota overview for Codex 5-hour and weekly limits
+- Touch Bar display when Terminal or Codex is the active app
+- macOS notifications when quota is running low
+- Automatic refresh every 2 minutes, plus manual refresh
+- Proxy settings for Codex app-server connectivity
+- Global hotkey for opening the menu bar popover
+- Accessory app mode: no Dock icon
+- Reads quota data through Codex `app-server`, preferring `codex` from `PATH` and falling back to `/Applications/Codex.app`
 
-## 截图
+## Screenshots
 
-### 菜单栏
+### Menu Bar
 
-![菜单栏配额视图](Docs/Images/menu-bar.png)
+![Menu bar quota view](Docs/Images/menu-bar.png)
 
 ### Touch Bar
 
-![Touch Bar 配额视图](Docs/Images/touch-bar.jpg)
+![Touch Bar quota view](Docs/Images/touch-bar.jpg)
 
-### 额度通知
+### Low Quota Notification
 
-![额度通知提醒](Docs/Images/notification.png)
+![Low quota notification](Docs/Images/notification.png)
 
-## 安装
+## Installation
 
-### 下载 DMG
+### Download DMG
 
-从 [GitHub Releases](https://github.com/slightlee/quota/releases) 下载最新的 `Quota-*.dmg`，打开后将 `Quota.app` 拖入 `Applications`。
+Download the latest `Quota-*.dmg` from [GitHub Releases](https://github.com/slightlee/quota/releases), open it, and drag `Quota.app` into `Applications`.
 
-### 从源码构建
+### Build From Source
 
 ```bash
 git clone https://github.com/slightlee/quota.git
@@ -50,92 +53,107 @@ bash Scripts/package-app.sh
 ditto .build/package/Quota.app /Applications/Quota.app
 ```
 
-然后双击运行，或加入登录项实现开机自启。
+Then launch `Quota.app` from `Applications`.
 
-不建议直接运行或复制 `.build/release/Quota` 裸二进制；通知权限、应用图标和菜单栏资源都依赖标准 `.app` 包结构。
+To launch Quota at login:
 
-**系统设置 → 通用 → 登录项 → 添加 Quota**
+**System Settings -> General -> Login Items -> Add Quota**
 
-### 打包为 `.app`
+Do not install the raw `.build/release/Quota` executable directly. Notifications, app icons, and bundled resources rely on the standard `.app` bundle structure.
+
+## Usage
+
+After launch, Quota appears in the macOS menu bar. Wait a few seconds for the first quota refresh.
+
+- Click the menu bar icon to view 5-hour and weekly quota details
+- Click `Refresh` or press `⌘R` to refresh manually
+- Click `Settings` to configure proxy and global hotkey options
+- Click `Quit` or press `⌘Q` to exit
+
+Touch Bar appears only when Terminal or Codex is the active app.
+
+### Notification Thresholds
+
+Quota sends low-quota notifications at these default remaining-percent thresholds:
+
+- Below 20%: warning
+- Below 10%: urgent
+- Below 5%: critical
+
+Each threshold is notified once per quota window. Notification state resets after the remaining quota recovers above 50%.
+
+## Packaging
+
+### Build `.app`
 
 ```bash
 bash Scripts/package-app.sh
 ```
 
-打包产物会输出到 `.build/package/Quota.app`，可以直接双击启动。
+Output:
 
-### 打包为 `.dmg`
+```text
+.build/package/Quota.app
+```
+
+### Build `.dmg`
 
 ```bash
 bash Scripts/package-dmg.sh
 ```
 
-打包产物会输出到 `.build/Quota-版本号.dmg`。
+Output:
 
-DMG 会包含固定 Finder 窗口布局：左侧为 `Quota.app`，右侧为 `Applications` 快捷入口。
-
-## 使用
-
-启动后菜单栏会出现 Quota 图标，稍等片刻自动获取数据。
-
-- 点击菜单栏图标查看 5 小时窗口和周限额
-- 点击「刷新」或按 `⌘R` 手动刷新
-- 点击「设置」配置代理和全局快捷键
-- 点击「退出」或按 `⌘Q` 退出
-
-Touch Bar 只在 Terminal 或 Codex 前台时显示，切换到其他应用后会隐藏。
-
-额度通知默认阈值：
-
-- 剩余额度低于 20%：普通提醒
-- 剩余额度低于 10%：紧急提醒
-- 剩余额度低于 5%：严重不足提醒
-
-每个窗口、每个阈值级别只提醒一次；额度恢复到 50% 以上后会重置提醒状态。
-
-## 工作原理
-
+```text
+.build/Quota-<version>.dmg
 ```
+
+The DMG includes a Finder installer layout with `Quota.app` on the left and an `Applications` shortcut on the right. In CI environments where Finder scripting is unavailable, packaging falls back to a default DMG layout.
+
+## How It Works
+
+```text
 ┌──────────────┐     JSON-RPC (stdio)     ┌──────────────┐
 │              │ ◄──────────────────────► │              │
 │    Quota     │   account/rateLimits/    │    Codex     │
 │              │         read             │ (app-server) │
-└──────┬───────┘                          └──────────────┘
-       │
-       ▼
- ┌──────────────────────────┐   ┌──────────────────────┐
- │ MenuBarController        │   │ TouchBarController   │
- │ + MenuBarLimitView       │   │ + TouchBarLimitView  │
- └──────────────────────────┘   └──────────────────────┘
+└──────┬───────┘                          └──────┬───────┘
+       │                                         │
+       ▼                                         ▼
+ ┌──────────────────────────┐             ┌──────────────────────┐
+ │ MenuBarController        │             │ TouchBarController   │
+ │ + MenuBarLimitView       │             │ + TouchBarLimitView  │
+ └──────────────────────────┘             └──────────────────────┘
 ```
 
-Quota 启动 Codex 的 app-server 子进程，通过 stdin/stdout 以 JSON-RPC 协议读取配额数据，每 2 分钟轮询一次。
+Quota starts Codex `app-server` as a child process and reads quota data through JSON-RPC over stdin/stdout. It refreshes quota data every 2 minutes.
 
-## 系统要求
+## Requirements
 
-- macOS 14 (Sonoma) 或更高版本
-- [Codex CLI](https://github.com/openai/codex) 或 Codex.app 已安装（二选一即可）
+- macOS 14 Sonoma or later
+- Codex CLI or Codex.app
+- A Codex account with rate limit data
 
-## 开发
+## Development
 
 ```bash
-# 本地运行
+# Run locally
 swift run
 
-# 生成 .app
+# Build .app
 bash Scripts/package-app.sh
 
-# 生成 .dmg
+# Build .dmg
 bash Scripts/package-dmg.sh
 
-# 查看调试日志
+# View debug logs
 swift run 2>&1 | grep "\[Quota\]"
 ```
 
-## 贡献
+## Contributing
 
-欢迎提 Issue 和 PR。
+Issues and pull requests are welcome.
 
-## 许可证
+## License
 
 [MIT](LICENSE)

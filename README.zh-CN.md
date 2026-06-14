@@ -21,6 +21,7 @@ Quota 是一个轻量级 macOS 菜单栏应用，用于实时查看 [Codex](http
 - 每 2 分钟自动刷新，也支持手动刷新
 - 支持 Codex app-server 连接代理配置
 - 支持全局快捷键打开菜单栏弹窗
+- 支持跟随系统、英文和简体中文语言切换
 - 以 accessory 模式运行，不占 Dock 栏
 - 通过 Codex `app-server` 读取数据，优先使用 `PATH` 中的 `codex`，找不到时回退到 `/Applications/Codex.app`
 
@@ -67,7 +68,7 @@ ditto .build/package/Quota.app /Applications/Quota.app
 
 - 点击菜单栏图标查看 5 小时窗口和周限额
 - 点击 `刷新` 或按 `⌘R` 手动刷新
-- 点击 `设置` 配置代理和全局快捷键
+- 点击 `设置` 配置代理、全局快捷键和显示语言
 - 点击 `退出` 或按 `⌘Q` 退出
 
 Touch Bar 只在 Terminal 或 Codex 前台时显示，切换到其他应用后会隐藏。

@@ -1,0 +1,58 @@
+"settings.title" = "设置";
+"menu.refresh" = "刷新";
+"menu.quit" = "退出";
+"quota.tooltip" = "Codex 额度";
+"error.prefix" = "错误";
+"refresh.failed.prefix" = "刷新失败";
+
+"quota.window.fiveHour" = "5小时";
+"quota.window.weekly" = "周限额";
+"quota.remaining" = "剩余";
+"quota.reset" = "重置";
+
+"settings.tab.proxy" = "代理";
+"settings.tab.hotkey" = "快捷键";
+"settings.tab.language" = "语言";
+"settings.button.save" = "保存";
+"settings.button.cancel" = "取消";
+
+"settings.proxy.subtitle" = "选择代理模式以连接 Codex 服务";
+"settings.proxy.mode" = "模式";
+"settings.proxy.address" = "地址";
+"settings.proxy.manualHelp" = "填写完整的代理地址，例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080";
+"settings.proxy.automaticHelp" = "自动模式使用系统代理，关闭模式不注入代理";
+"settings.proxy.mode.automatic" = "自动";
+"settings.proxy.mode.manual" = "手动";
+"settings.proxy.mode.disabled" = "关闭";
+
+"settings.hotkey.subtitle" = "设置快捷键，在任意应用中快速展开顶部菜单栏";
+"settings.hotkey.enable" = "启用全局快捷键";
+"settings.hotkey.openMenu" = "打开菜单";
+"settings.hotkey.press" = "请按下快捷键...";
+"settings.hotkey.record" = "点击录制快捷键";
+
+"settings.language.subtitle" = "选择 Quota 使用的显示语言";
+"settings.language.system" = "跟随系统";
+"settings.language.english" = "English";
+"settings.language.simplifiedChinese" = "简体中文";
+
+"validation.proxy.title" = "代理地址无效";
+"validation.proxy.message" = "请输入完整的代理地址，例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080。";
+"validation.hotkey.title" = "快捷键无效";
+"validation.hotkey.message" = "启用全局快捷键后，请先录入至少一个修饰键和一个按键。";
+
+"notification.permission.title" = "需要通知权限";
+"notification.permission.message" = "Quota 需要发送通知来提醒你额度不足。\n请在系统设置中开启 Quota 的通知权限。";
+"notification.permission.openSettings" = "打开系统设置";
+"notification.permission.later" = "稍后设置";
+
+"error.codexBinaryMissing" = "未找到 Codex 可执行文件";
+"error.missingRateLimitWindow" = "额度响应缺少窗口数据";
+"error.invalidResponse" = "无法解析 Codex 响应";
+
+"notification.lowQuota.fiveHour.title" = "%@ 5小时额度%@！";
+"notification.lowQuota.weekly.title" = "%@ 周限额%@！";
+"notification.lowQuota.combined.title" = "%@ 额度%@！";
+"notification.severity.warning" = "偏低";
+"notification.severity.urgent" = "紧急";
+"notification.severity.critical" = "严重不足";

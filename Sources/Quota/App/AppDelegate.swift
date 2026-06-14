@@ -5,15 +5,21 @@ import UserNotifications
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     private let proxySettingsStore = ProxySettingsStore.shared
     private let hotkeySettingsStore = HotkeySettingsStore.shared
+    private let languageSettingsStore = LanguageSettingsStore.shared
     private var currentProxyConfiguration = ProxySettingsStore.shared.configuration
     private var currentHotkeyConfiguration = HotkeySettingsStore.shared.configuration
     private lazy var client = CodexAppServerClient(proxySettingsStore: proxySettingsStore)
     private lazy var rateLimitService = RateLimitService(client: client)
     private lazy var settingsWindowController = SettingsWindowController(
         proxyStore: proxySettingsStore,
-        hotkeyStore: hotkeySettingsStore
-    ) { [weak self] proxyConfig, hotkeyConfig in
-        self?.settingsDidSave(proxyConfig: proxyConfig, hotkeyConfig: hotkeyConfig)
+        hotkeyStore: hotkeySettingsStore,
+        languageStore: languageSettingsStore
+    ) { [weak self] proxyConfig, hotkeyConfig, languagePreference in
+        self?.settingsDidSave(
+            proxyConfig: proxyConfig,
+            hotkeyConfig: hotkeyConfig,
+            languagePreference: languagePreference
+        )
     }
     private lazy var menuBarController = MenuBarController(service: rateLimitService) { [weak self] in
         self?.showSettings()
@@ -79,7 +85,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
     }
 
-    private func settingsDidSave(proxyConfig: ProxyConfiguration, hotkeyConfig: HotkeyConfiguration) {
+    private func settingsDidSave(
+        proxyConfig: ProxyConfiguration,
+        hotkeyConfig: HotkeyConfiguration,
+        languagePreference: AppLanguagePreference
+    ) {
         let proxyChanged = proxyConfig != currentProxyConfiguration
         let hotkeyChanged = hotkeyConfig != currentHotkeyConfiguration
 
@@ -93,6 +103,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         if hotkeyChanged {
             updateHotkeyRegistration(with: hotkeyConfig)
         }
+
+        reloadLocalizedText()
+    }
+
+    private func reloadLocalizedText() {
+        menuBarController.reloadLocalizedText()
+        touchBarController.reloadLocalizedText()
     }
 
     private func loadAccountMetadata() {

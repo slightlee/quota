@@ -4,6 +4,7 @@ final class TouchBarLimitView: NSView {
     private let stack = NSStackView()
     private let fiveHourRow = LimitRowView()
     private let weeklyRow = LimitRowView()
+    private var state: RateLimitDisplayState?
 
     override var intrinsicContentSize: NSSize {
         NSSize(width: 450, height: 26)
@@ -20,6 +21,7 @@ final class TouchBarLimitView: NSView {
     }
 
     func update(with state: RateLimitDisplayState) {
+        self.state = state
         fiveHourRow.update(with: state.fiveHour)
         weeklyRow.update(with: state.weekly)
     }
@@ -33,8 +35,7 @@ final class TouchBarLimitView: NSView {
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
 
-        fiveHourRow.showPlaceholder(title: "5小时")
-        weeklyRow.showPlaceholder(title: "周限额")
+        reloadLocalizedText()
 
         stack.orientation = .vertical
         stack.distribution = .fillEqually
@@ -50,6 +51,15 @@ final class TouchBarLimitView: NSView {
             stack.topAnchor.constraint(equalTo: topAnchor),
             stack.bottomAnchor.constraint(equalTo: bottomAnchor)
         ])
+    }
+
+    func reloadLocalizedText() {
+        if let state {
+            update(with: state)
+        } else {
+            fiveHourRow.showPlaceholder(title: L.fiveHourTitle)
+            weeklyRow.showPlaceholder(title: L.weeklyTitle)
+        }
     }
 }
 
@@ -77,7 +87,7 @@ private final class LimitRowView: NSView {
 
     func update(with window: LimitWindowDisplay) {
         titleLabel.stringValue = window.title
-        percentLabel.stringValue = "剩余\(Int(window.remainingPercent.rounded()))%"
+        percentLabel.stringValue = "\(L.remaining)\(Int(window.remainingPercent.rounded()))%"
         resetLabel.stringValue = window.resetText
 
         let filledCount = Int((window.remainingPercent / 5).rounded(.toNearestOrAwayFromZero))
@@ -95,8 +105,8 @@ private final class LimitRowView: NSView {
 
     func showPlaceholder(title: String) {
         titleLabel.stringValue = title
-        percentLabel.stringValue = "剩余--%"
-        resetLabel.stringValue = "重置 --"
+        percentLabel.stringValue = "\(L.remaining)--%"
+        resetLabel.stringValue = "\(L.reset) --"
         segments.forEach { segment in
             segment.isFilled = false
             segment.fillColor = .systemGreen

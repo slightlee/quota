@@ -7,6 +7,9 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let contentView = MenuBarLimitView(frame: NSRect(x: 0, y: 0, width: 260, height: 105))
     private let errorItem = NSMenuItem()
+    private let settingsItem = NSMenuItem()
+    private let refreshItem = NSMenuItem()
+    private let quitItem = NSMenuItem()
     private var usesIconOnly = false
 
     init(service: RateLimitService, showSettings: @escaping () -> Void) {
@@ -22,7 +25,7 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
         } else {
             statusItem.button?.title = "Codex"
         }
-        statusItem.button?.toolTip = "Codex 额度"
+        statusItem.button?.toolTip = L.quotaTooltip
         debugLog("[Quota] status item created")
 
         let menu = NSMenu()
@@ -36,17 +39,32 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
         menu.addItem(visualItem)
         menu.addItem(errorItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "设置", action: #selector(openSettings), keyEquivalent: ","))
-        menu.addItem(NSMenuItem(title: "刷新", action: #selector(refresh), keyEquivalent: "r"))
-        menu.addItem(NSMenuItem(title: "退出", action: #selector(quit), keyEquivalent: "q"))
+        settingsItem.action = #selector(openSettings)
+        settingsItem.keyEquivalent = ","
+        refreshItem.action = #selector(refresh)
+        refreshItem.keyEquivalent = "r"
+        quitItem.action = #selector(quit)
+        quitItem.keyEquivalent = "q"
+        menu.addItem(settingsItem)
+        menu.addItem(refreshItem)
+        menu.addItem(quitItem)
         menu.items.forEach { $0.target = self }
         statusItem.menu = menu
+        reloadLocalizedText()
 
         service.addObserver(self)
     }
 
     func applyPlan(_ plan: String) {
         contentView.configureModel("Codex", plan: plan)
+    }
+
+    func reloadLocalizedText() {
+        statusItem.button?.toolTip = L.quotaTooltip
+        settingsItem.title = L.settings
+        refreshItem.title = L.refresh
+        quitItem.title = L.quit
+        contentView.reloadLocalizedText()
     }
 
     func rateLimitService(_ service: RateLimitService, didUpdate state: RateLimitDisplayState) {
@@ -58,7 +76,7 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
             render(state: lastState, error: error)
         } else {
             updateStatusLabel(fiveHour: nil, weekly: nil)
-            errorItem.title = "错误：\(error.localizedDescription)"
+            errorItem.title = "\(L.errorPrefix): \(error.localizedDescription)"
             errorItem.isHidden = false
         }
     }
@@ -74,7 +92,7 @@ final class MenuBarController: NSObject, RateLimitServiceObserver {
 
         if let error {
             debugLog("[Quota] refresh failed: \(error.localizedDescription)")
-            errorItem.title = "刷新失败：\(error.localizedDescription)"
+            errorItem.title = "\(L.refreshFailedPrefix): \(error.localizedDescription)"
             errorItem.isHidden = false
         } else {
             errorItem.isHidden = true

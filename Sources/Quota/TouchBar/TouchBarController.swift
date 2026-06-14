@@ -39,12 +39,16 @@ final class TouchBarController: NSObject, NSTouchBarDelegate, RateLimitServiceOb
         contentView.configureModel("Codex", plan: plan)
     }
 
+    func reloadLocalizedText() {
+        contentView.reloadLocalizedText()
+    }
+
     func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
         guard identifier == Self.itemIdentifier else { return nil }
 
         let item = NSCustomTouchBarItem(identifier: identifier)
         item.view = contentView
-        item.customizationLabel = "Codex 额度"
+        item.customizationLabel = L.quotaTooltip
         return item
     }
 

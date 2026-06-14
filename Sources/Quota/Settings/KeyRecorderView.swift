@@ -111,14 +111,14 @@ final class KeyRecorderView: NSView {
         guard isRecording else { return }
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let symbols = HotkeyKeymap.modifierSymbols(from: modifiers)
-        labelField.stringValue = symbols.isEmpty ? "请按下快捷键..." : symbols
+        labelField.stringValue = symbols.isEmpty ? L.pressHotkey : symbols
     }
 
     // MARK: - Private
 
     private func startRecording() {
         isRecording = true
-        labelField.stringValue = "请按下快捷键..."
+        labelField.stringValue = L.pressHotkey
         labelField.textColor = .secondaryLabelColor
         clearButton.isHidden = true
     }
@@ -134,7 +134,7 @@ final class KeyRecorderView: NSView {
             labelField.textColor = .labelColor
             clearButton.isHidden = false
         } else {
-            labelField.stringValue = isRecording ? "请按下快捷键..." : "点击录制快捷键"
+            labelField.stringValue = isRecording ? L.pressHotkey : L.clickToRecordHotkey
             labelField.textColor = .tertiaryLabelColor
             clearButton.isHidden = true
         }

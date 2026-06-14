@@ -4,9 +4,9 @@ import AppKit
 
 private enum Layout {
     static let windowWidth: CGFloat = 480
-    static let windowHeight: CGFloat = 280
+    static let windowHeight: CGFloat = 320
     static let padding: CGFloat = 24
-    static let labelWidth: CGFloat = 48
+    static let labelWidth: CGFloat = 76
     static let rowSpacing: CGFloat = 12
     static let sectionSpacing: CGFloat = 14
 }
@@ -16,16 +16,19 @@ private enum Layout {
 final class SettingsWindowController: NSWindowController {
     private let proxyStore: ProxySettingsStore
     private let hotkeyStore: HotkeySettingsStore
-    private let onSave: (ProxyConfiguration, HotkeyConfiguration) -> Void
+    private let languageStore: LanguageSettingsStore
+    private let onSave: (ProxyConfiguration, HotkeyConfiguration, AppLanguagePreference) -> Void
     private let rootViewController: SettingsViewController
 
     init(
         proxyStore: ProxySettingsStore,
         hotkeyStore: HotkeySettingsStore,
-        onSave: @escaping (ProxyConfiguration, HotkeyConfiguration) -> Void
+        languageStore: LanguageSettingsStore,
+        onSave: @escaping (ProxyConfiguration, HotkeyConfiguration, AppLanguagePreference) -> Void
     ) {
         self.proxyStore = proxyStore
         self.hotkeyStore = hotkeyStore
+        self.languageStore = languageStore
         self.onSave = onSave
         self.rootViewController = SettingsViewController()
 
@@ -35,7 +38,7 @@ final class SettingsWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "设置"
+        window.title = L.settings
         window.isReleasedWhenClosed = false
         window.center()
         window.contentViewController = rootViewController
@@ -45,11 +48,13 @@ final class SettingsWindowController: NSWindowController {
         rootViewController.configure(
             proxyConfiguration: proxyStore.configuration,
             hotkeyConfiguration: hotkeyStore.configuration,
-            onSave: { [weak self] proxyConfig, hotkeyConfig in
+            languagePreference: languageStore.preference,
+            onSave: { [weak self] proxyConfig, hotkeyConfig, languagePreference in
                 guard let self else { return }
                 self.proxyStore.configuration = proxyConfig
                 self.hotkeyStore.configuration = hotkeyConfig
-                self.onSave(proxyConfig, hotkeyConfig)
+                self.languageStore.preference = languagePreference
+                self.onSave(proxyConfig, hotkeyConfig, languagePreference)
             },
             onCancel: { [weak self] in
                 self?.window?.close()
@@ -65,8 +70,10 @@ final class SettingsWindowController: NSWindowController {
         rootViewController.loadViewIfNeeded()
         rootViewController.reload(
             proxyConfiguration: proxyStore.configuration,
-            hotkeyConfiguration: hotkeyStore.configuration
+            hotkeyConfiguration: hotkeyStore.configuration,
+            languagePreference: languageStore.preference
         )
+        window?.title = L.settings
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -77,21 +84,31 @@ final class SettingsWindowController: NSWindowController {
 
 private final class SettingsViewController: NSViewController {
     // Tab
-    private let tabControl = NSSegmentedControl(labels: ["代理", "快捷键"], trackingMode: .selectOne, target: nil, action: nil)
+    private let tabControl = NSSegmentedControl(labels: ["", "", ""], trackingMode: .selectOne, target: nil, action: nil)
     private let proxyContainer = NSView()
     private let hotkeyContainer = NSView()
+    private let languageContainer = NSView()
     // Proxy
-    private let modeControl = NSSegmentedControl(labels: ProxyMode.allCases.map(\.displayTitle), trackingMode: .selectOne, target: nil, action: nil)
+    private let modeControl = NSSegmentedControl(labels: ["", "", ""], trackingMode: .selectOne, target: nil, action: nil)
     private let proxyURLField = NSTextField(string: "")
     private let helperLabel = NSTextField(labelWithString: "")
+    private let proxySubtitleLabel = NSTextField(labelWithString: "")
+    private let proxyModeLabel = NSTextField(labelWithString: "")
+    private let proxyAddressLabel = NSTextField(labelWithString: "")
     // Hotkey
     private let keyRecorder = KeyRecorderView()
-    private let hotkeyToggle = NSButton(checkboxWithTitle: "启用全局快捷键", target: nil, action: nil)
+    private let hotkeyToggle = NSButton(checkboxWithTitle: "", target: nil, action: nil)
+    private let hotkeySubtitleLabel = NSTextField(labelWithString: "")
+    private let openMenuLabel = NSTextField(labelWithString: "")
+    // Language
+    private let languagePopUp = NSPopUpButton(frame: .zero, pullsDown: false)
+    private let languageSubtitleLabel = NSTextField(labelWithString: "")
+    private let languageLabel = NSTextField(labelWithString: "")
     // Buttons
-    private let saveButton = NSButton(title: "保存", target: nil, action: nil)
-    private let cancelButton = NSButton(title: "取消", target: nil, action: nil)
+    private let saveButton = NSButton(title: "", target: nil, action: nil)
+    private let cancelButton = NSButton(title: "", target: nil, action: nil)
 
-    private var onSave: ((ProxyConfiguration, HotkeyConfiguration) -> Void)?
+    private var onSave: ((ProxyConfiguration, HotkeyConfiguration, AppLanguagePreference) -> Void)?
     private var onCancel: (() -> Void)?
 
     private var pendingHotkeyCode: UInt32 = 0
@@ -105,16 +122,28 @@ private final class SettingsViewController: NSViewController {
     func configure(
         proxyConfiguration: ProxyConfiguration,
         hotkeyConfiguration: HotkeyConfiguration,
-        onSave: @escaping (ProxyConfiguration, HotkeyConfiguration) -> Void,
+        languagePreference: AppLanguagePreference,
+        onSave: @escaping (ProxyConfiguration, HotkeyConfiguration, AppLanguagePreference) -> Void,
         onCancel: @escaping () -> Void
     ) {
         self.onSave = onSave
         self.onCancel = onCancel
-        reload(proxyConfiguration: proxyConfiguration, hotkeyConfiguration: hotkeyConfiguration)
+        reload(
+            proxyConfiguration: proxyConfiguration,
+            hotkeyConfiguration: hotkeyConfiguration,
+            languagePreference: languagePreference
+        )
     }
 
-    func reload(proxyConfiguration: ProxyConfiguration, hotkeyConfiguration: HotkeyConfiguration) {
+    func reload(
+        proxyConfiguration: ProxyConfiguration,
+        hotkeyConfiguration: HotkeyConfiguration,
+        languagePreference: AppLanguagePreference
+    ) {
         guard isViewLoaded else { return }
+        selectLanguagePreference(languagePreference)
+
+        applyLocalizedText()
         modeControl.selectedSegment = ProxyMode.allCases.firstIndex(of: proxyConfiguration.mode) ?? 0
         proxyURLField.stringValue = proxyConfiguration.proxyURL
         updateVisibility()
@@ -142,6 +171,11 @@ private final class SettingsViewController: NSViewController {
         hotkeyContainer.translatesAutoresizingMaskIntoConstraints = false
         hotkeyContainer.isHidden = true
 
+        // ── Language tab content ──
+        setupLanguageTab()
+        languageContainer.translatesAutoresizingMaskIntoConstraints = false
+        languageContainer.isHidden = true
+
         // ── Button row ──
         saveButton.bezelStyle = .rounded
         saveButton.keyEquivalent = "\r"
@@ -162,7 +196,7 @@ private final class SettingsViewController: NSViewController {
         buttonRow.alignment = .centerY
 
         // ── Root layout ──
-        let rootStack = NSStackView(views: [tabControl, proxyContainer, hotkeyContainer, buttonRow])
+        let rootStack = NSStackView(views: [tabControl, proxyContainer, hotkeyContainer, languageContainer, buttonRow])
         rootStack.orientation = .vertical
         rootStack.alignment = .leading
         rootStack.spacing = Layout.sectionSpacing
@@ -185,34 +219,36 @@ private final class SettingsViewController: NSViewController {
             proxyContainer.trailingAnchor.constraint(equalTo: rootStack.trailingAnchor, constant: -Layout.padding),
             hotkeyContainer.leadingAnchor.constraint(equalTo: rootStack.leadingAnchor, constant: Layout.padding),
             hotkeyContainer.trailingAnchor.constraint(equalTo: rootStack.trailingAnchor, constant: -Layout.padding),
+            languageContainer.leadingAnchor.constraint(equalTo: rootStack.leadingAnchor, constant: Layout.padding),
+            languageContainer.trailingAnchor.constraint(equalTo: rootStack.trailingAnchor, constant: -Layout.padding),
             tabControl.leadingAnchor.constraint(equalTo: rootStack.leadingAnchor, constant: Layout.padding),
         ])
 
+        applyLocalizedText()
         updateVisibility()
     }
 
     private func setupProxyTab() {
-        let subtitleLabel = NSTextField(labelWithString: "选择代理模式以连接 Codex 服务")
-        subtitleLabel.font = .systemFont(ofSize: 13, weight: .regular)
-        subtitleLabel.textColor = .secondaryLabelColor
+        proxySubtitleLabel.font = .systemFont(ofSize: 13, weight: .regular)
+        proxySubtitleLabel.textColor = .secondaryLabelColor
 
-        let modeLabel = makeLabel("模式")
+        configureLabel(proxyModeLabel)
         modeControl.target = self
         modeControl.action = #selector(modeChanged)
-        let modeRow = makeRow(label: modeLabel, control: modeControl)
+        let modeRow = makeRow(label: proxyModeLabel, control: modeControl)
 
-        let proxyLabel = makeLabel("地址")
+        configureLabel(proxyAddressLabel)
         proxyURLField.placeholderString = "http://127.0.0.1:7890"
         proxyURLField.target = self
         proxyURLField.action = #selector(valueChanged)
-        let proxyRow = makeRow(label: proxyLabel, control: proxyURLField)
+        let proxyRow = makeRow(label: proxyAddressLabel, control: proxyURLField)
 
         helperLabel.font = .systemFont(ofSize: 11, weight: .regular)
         helperLabel.textColor = .secondaryLabelColor
         helperLabel.maximumNumberOfLines = 0
         helperLabel.lineBreakMode = .byWordWrapping
 
-        let stack = NSStackView(views: [subtitleLabel, modeRow, proxyRow, helperLabel])
+        let stack = NSStackView(views: [proxySubtitleLabel, modeRow, proxyRow, helperLabel])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = Layout.sectionSpacing
@@ -228,9 +264,8 @@ private final class SettingsViewController: NSViewController {
     }
 
     private func setupHotkeyTab() {
-        let subtitleLabel = NSTextField(labelWithString: "设置快捷键，在任意应用中快速展开顶部菜单栏")
-        subtitleLabel.font = .systemFont(ofSize: 13, weight: .regular)
-        subtitleLabel.textColor = .secondaryLabelColor
+        hotkeySubtitleLabel.font = .systemFont(ofSize: 13, weight: .regular)
+        hotkeySubtitleLabel.textColor = .secondaryLabelColor
 
         hotkeyToggle.target = self
         hotkeyToggle.action = #selector(hotkeyToggleChanged)
@@ -244,13 +279,10 @@ private final class SettingsViewController: NSViewController {
             self?.pendingHotkeyModifiers = 0
         }
 
-        let menuLabel = NSTextField(labelWithString: "打开菜单")
-        menuLabel.font = .systemFont(ofSize: 13, weight: .medium)
-        menuLabel.textColor = .labelColor
-        menuLabel.setContentHuggingPriority(.required, for: .horizontal)
-        let toggleRow = makeRow(label: menuLabel, control: keyRecorder)
+        configureLabel(openMenuLabel)
+        let toggleRow = makeRow(label: openMenuLabel, control: keyRecorder)
 
-        let stack = NSStackView(views: [subtitleLabel, hotkeyToggle, toggleRow])
+        let stack = NSStackView(views: [hotkeySubtitleLabel, hotkeyToggle, toggleRow])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = Layout.sectionSpacing
@@ -266,12 +298,35 @@ private final class SettingsViewController: NSViewController {
         ])
     }
 
-    private func makeLabel(_ text: String) -> NSTextField {
-        let label = NSTextField(labelWithString: text)
+    private func setupLanguageTab() {
+        languageSubtitleLabel.font = .systemFont(ofSize: 13, weight: .regular)
+        languageSubtitleLabel.textColor = .secondaryLabelColor
+
+        configureLabel(languageLabel)
+        languagePopUp.translatesAutoresizingMaskIntoConstraints = false
+        let languageRow = makeRow(label: languageLabel, control: languagePopUp)
+
+        let stack = NSStackView(views: [languageSubtitleLabel, languageRow])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = Layout.sectionSpacing
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        languageContainer.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: languageContainer.topAnchor),
+            stack.leadingAnchor.constraint(equalTo: languageContainer.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: languageContainer.trailingAnchor),
+            stack.bottomAnchor.constraint(lessThanOrEqualTo: languageContainer.bottomAnchor),
+            languagePopUp.widthAnchor.constraint(greaterThanOrEqualToConstant: 180),
+        ])
+    }
+
+    private func configureLabel(_ label: NSTextField) {
         label.font = .systemFont(ofSize: 13, weight: .medium)
         label.textColor = .labelColor
         label.widthAnchor.constraint(equalToConstant: Layout.labelWidth).isActive = true
-        return label
+        label.setContentHuggingPriority(.required, for: .horizontal)
     }
 
     private func makeRow(label: NSView, control: NSView) -> NSStackView {
@@ -285,9 +340,9 @@ private final class SettingsViewController: NSViewController {
     // MARK: - Tab Switching
 
     @objc private func tabChanged() {
-        let isProxy = tabControl.selectedSegment == 0
-        proxyContainer.isHidden = !isProxy
-        hotkeyContainer.isHidden = isProxy
+        proxyContainer.isHidden = tabControl.selectedSegment != 0
+        hotkeyContainer.isHidden = tabControl.selectedSegment != 1
+        languageContainer.isHidden = tabControl.selectedSegment != 2
     }
 
     // MARK: - Logic
@@ -305,14 +360,44 @@ private final class SettingsViewController: NSViewController {
         )
     }
 
+    private func currentLanguagePreference() -> AppLanguagePreference {
+        AppLanguagePreference.allCases[safe: languagePopUp.indexOfSelectedItem] ?? .system
+    }
+
+    private func applyLocalizedText() {
+        tabControl.setLabel(L.proxy, forSegment: 0)
+        tabControl.setLabel(L.hotkey, forSegment: 1)
+        tabControl.setLabel(L.languageTitle, forSegment: 2)
+
+        for (index, mode) in ProxyMode.allCases.enumerated() {
+            modeControl.setLabel(L.proxyModeTitle(mode), forSegment: index)
+        }
+
+        reloadLanguageMenu()
+
+        proxySubtitleLabel.stringValue = L.proxySubtitle
+        proxyModeLabel.stringValue = L.proxyMode
+        proxyAddressLabel.stringValue = L.proxyAddress
+
+        hotkeySubtitleLabel.stringValue = L.hotkeySubtitle
+        hotkeyToggle.title = L.enableGlobalHotkey
+        openMenuLabel.stringValue = L.openMenu
+
+        languageSubtitleLabel.stringValue = L.languageSubtitle
+        languageLabel.stringValue = L.languageTitle
+
+        saveButton.title = L.save
+        cancelButton.title = L.cancel
+    }
+
     private func updateVisibility() {
         let configuration = currentProxyConfiguration()
         let isManual = configuration.mode == .manual
         proxyURLField.isEnabled = isManual
         proxyURLField.alphaValue = isManual ? 1.0 : 0.45
         helperLabel.stringValue = isManual
-            ? "填写完整的代理地址，例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080"
-            : "自动模式使用系统代理，关闭模式不注入代理"
+            ? L.proxyManualHelp
+            : L.proxyAutomaticHelp
     }
 
     @objc private func modeChanged() {
@@ -326,6 +411,20 @@ private final class SettingsViewController: NSViewController {
         if enabled && pendingHotkeyCode == 0 {
             view.window?.makeFirstResponder(keyRecorder)
         }
+    }
+
+    private func selectLanguagePreference(_ preference: AppLanguagePreference) {
+        let index = AppLanguagePreference.allCases.firstIndex(of: preference) ?? 0
+        languagePopUp.selectItem(at: index)
+    }
+
+    private func reloadLanguageMenu() {
+        let selectedPreference = currentLanguagePreference()
+        languagePopUp.removeAllItems()
+        AppLanguagePreference.allCases.forEach { preference in
+            languagePopUp.addItem(withTitle: L.languagePreferenceTitle(preference))
+        }
+        selectLanguagePreference(selectedPreference)
     }
 
     @objc private func save() {
@@ -345,7 +444,7 @@ private final class SettingsViewController: NSViewController {
             }
         }
 
-        onSave?(proxyConfig, hotkeyConfig)
+        onSave?(proxyConfig, hotkeyConfig, currentLanguagePreference())
         view.window?.close()
     }
 
@@ -355,8 +454,8 @@ private final class SettingsViewController: NSViewController {
 
     private func presentValidationError() {
         let alert = NSAlert()
-        alert.messageText = "代理地址无效"
-        alert.informativeText = "请输入完整的代理地址，例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080。"
+        alert.messageText = L.invalidProxyTitle
+        alert.informativeText = L.invalidProxyMessage
         alert.alertStyle = .warning
         if let window = view.window ?? NSApp.keyWindow {
             alert.beginSheetModal(for: window) { _ in }
@@ -367,8 +466,8 @@ private final class SettingsViewController: NSViewController {
 
     private func presentHotkeyValidationError() {
         let alert = NSAlert()
-        alert.messageText = "快捷键无效"
-        alert.informativeText = "启用全局快捷键后，请先录入至少一个修饰键和一个按键。"
+        alert.messageText = L.invalidHotkeyTitle
+        alert.informativeText = L.invalidHotkeyMessage
         alert.alertStyle = .warning
         if let window = view.window ?? NSApp.keyWindow {
             alert.beginSheetModal(for: window) { _ in }

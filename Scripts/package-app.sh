@@ -8,6 +8,7 @@ INFO_PLIST="$ROOT_DIR/Packaging/Info.plist"
 ICONSET_DIR="$ROOT_DIR/Assets/AppIcon.iconset"
 ICON_FILE="$APP_DIR/Contents/Resources/AppIcon.icns"
 MENU_BAR_ICON="$ROOT_DIR/Sources/Quota/Resources/MenuBarIcon.png"
+RESOURCE_BUNDLE_NAME="${APP_NAME}_$APP_NAME.bundle"
 
 # Support both universal binary paths built with --arch and default paths.
 BUILD_DIR="$ROOT_DIR/.build/apple/Products/Release"
@@ -37,6 +38,13 @@ cp "$INFO_PLIST" "$APP_DIR/Contents/Info.plist"
 printf "APPL????" > "$APP_DIR/Contents/PkgInfo"
 cp "$EXECUTABLE" "$APP_DIR/Contents/MacOS/$APP_NAME"
 chmod 755 "$APP_DIR/Contents/MacOS/$APP_NAME"
+
+if [[ -d "$BUILD_DIR/$RESOURCE_BUNDLE_NAME" ]]; then
+  cp -R "$BUILD_DIR/$RESOURCE_BUNDLE_NAME" "$APP_DIR/Contents/Resources/$RESOURCE_BUNDLE_NAME"
+else
+  echo "Missing resource bundle: $BUILD_DIR/$RESOURCE_BUNDLE_NAME" >&2
+  exit 1
+fi
 
 if [[ -d "$ICONSET_DIR" ]]; then
   iconutil -c icns "$ICONSET_DIR" -o "$ICON_FILE"

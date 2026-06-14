@@ -21,6 +21,7 @@ Quota is a lightweight macOS menu bar app for monitoring [Codex](https://github.
 - Automatic refresh every 2 minutes, plus manual refresh
 - Proxy settings for Codex app-server connectivity
 - Global hotkey for opening the menu bar popover
+- Language switcher with System, English, and Simplified Chinese options
 - Accessory app mode: no Dock icon
 - Reads quota data through Codex `app-server`, preferring `codex` from `PATH` and falling back to `/Applications/Codex.app`
 
@@ -67,7 +68,7 @@ After launch, Quota appears in the macOS menu bar. Wait a few seconds for the fi
 
 - Click the menu bar icon to view 5-hour and weekly quota details
 - Click `Refresh` or press `⌘R` to refresh manually
-- Click `Settings` to configure proxy and global hotkey options
+- Click `Settings` to configure proxy, global hotkey, and language options
 - Click `Quit` or press `⌘Q` to exit
 
 Touch Bar appears only when Terminal or Codex is the active app.

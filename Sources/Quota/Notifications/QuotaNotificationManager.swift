@@ -71,7 +71,6 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
 
     private let resetFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
         formatter.dateFormat = "M/d HH:mm"
         return formatter
     }()
@@ -197,14 +196,12 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
         weeklyCrossed: [NotifyThreshold],
         severity: NotifyThreshold
     ) -> String {
-        switch (fiveCrossed.isEmpty, weeklyCrossed.isEmpty) {
-        case (false, true):
-            return "\(severity.emoji) 5小时额度\(severityLabel(severity))！"
-        case (true, false):
-            return "\(severity.emoji) 周限额\(severityLabel(severity))！"
-        default:
-            return "\(severity.emoji) 额度\(severityLabel(severity))！"
-        }
+        L.lowQuotaTitle(
+            fiveCrossed: !fiveCrossed.isEmpty,
+            weeklyCrossed: !weeklyCrossed.isEmpty,
+            severity: severityLabel(severity),
+            emoji: severity.emoji
+        )
     }
 
     private func buildBody(
@@ -216,19 +213,23 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
         let weeklyPercent = Int(state.weekly.remainingPercent.rounded())
         let fiveMarker = fiveCrossed.isEmpty ? "" : " ⚠️"
         let weeklyMarker = weeklyCrossed.isEmpty ? "" : " ⚠️"
-        let fiveReset = state.fiveHour.resetsAt.map { "  重置 \(resetFormatter.string(from: $0))" } ?? ""
-        let weeklyReset = state.weekly.resetsAt.map { "  重置 \(resetFormatter.string(from: $0))" } ?? ""
+        resetFormatter.locale = L.locale
+        let fiveReset = state.fiveHour.resetsAt.map { "  \(L.reset) \(resetFormatter.string(from: $0))" } ?? ""
+        let weeklyReset = state.weekly.resetsAt.map { "  \(L.reset) \(resetFormatter.string(from: $0))" } ?? ""
 
-        return "5小时 \(fivePercent)%\(fiveMarker)\(fiveReset)\n周限额 \(weeklyPercent)%\(weeklyMarker)\(weeklyReset)"
+        return "\(L.fiveHourTitle) \(fivePercent)%\(fiveMarker)\(fiveReset)\n\(L.weeklyTitle) \(weeklyPercent)%\(weeklyMarker)\(weeklyReset)"
     }
 
     // MARK: - Helpers
 
     private func severityLabel(_ threshold: NotifyThreshold) -> String {
         switch threshold {
-        case .warning:  return "偏低"
-        case .urgent:   return "紧急"
-        case .critical: return "严重不足"
+        case .warning:
+            return L.severityWarning
+        case .urgent:
+            return L.severityUrgent
+        case .critical:
+            return L.severityCritical
         }
     }
 
@@ -267,9 +268,9 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
             debugLog("[Quota] notification not authorized, rechecking system settings")
             recheckAuthorizationAndSchedule(pending, completion: completion)
         } else {
-            debugLog("[Quota] ── 通知预览 ──")
-            debugLog("[Quota] 标题: \(content.title)")
-            debugLog("[Quota] 正文: \(content.body)")
+            debugLog("[Quota] ── notification preview ──")
+            debugLog("[Quota] title: \(content.title)")
+            debugLog("[Quota] body: \(content.body)")
             debugLog("[Quota] ────────────")
             completion(true)
         }
@@ -389,11 +390,11 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
     /// Prompts the user to enable notification permission.
     private func promptEnableNotifications() {
         let alert = NSAlert()
-        alert.messageText = "需要通知权限"
-        alert.informativeText = "Quota 需要发送通知来提醒你额度不足。\n请在系统设置中开启 Quota 的通知权限。"
+        alert.messageText = L.notificationPermissionTitle
+        alert.informativeText = L.notificationPermissionMessage
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "打开系统设置")
-        alert.addButton(withTitle: "稍后设置")
+        alert.addButton(withTitle: L.openSystemSettings)
+        alert.addButton(withTitle: L.later)
 
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {

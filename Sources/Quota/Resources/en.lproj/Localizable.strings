@@ -1,0 +1,58 @@
+"settings.title" = "Settings";
+"menu.refresh" = "Refresh";
+"menu.quit" = "Quit";
+"quota.tooltip" = "Codex quota";
+"error.prefix" = "Error";
+"refresh.failed.prefix" = "Refresh failed";
+
+"quota.window.fiveHour" = "5h";
+"quota.window.weekly" = "Weekly";
+"quota.remaining" = "Left";
+"quota.reset" = "Reset";
+
+"settings.tab.proxy" = "Proxy";
+"settings.tab.hotkey" = "Hotkey";
+"settings.tab.language" = "Language";
+"settings.button.save" = "Save";
+"settings.button.cancel" = "Cancel";
+
+"settings.proxy.subtitle" = "Choose a proxy mode for connecting to Codex services";
+"settings.proxy.mode" = "Mode";
+"settings.proxy.address" = "Address";
+"settings.proxy.manualHelp" = "Enter a complete proxy URL, such as http://127.0.0.1:7890 or socks5://127.0.0.1:1080";
+"settings.proxy.automaticHelp" = "Automatic mode uses the system proxy. Disabled mode injects no proxy.";
+"settings.proxy.mode.automatic" = "Automatic";
+"settings.proxy.mode.manual" = "Manual";
+"settings.proxy.mode.disabled" = "Disabled";
+
+"settings.hotkey.subtitle" = "Set a shortcut to open the menu bar popover from any app";
+"settings.hotkey.enable" = "Enable global hotkey";
+"settings.hotkey.openMenu" = "Open menu";
+"settings.hotkey.press" = "Press shortcut...";
+"settings.hotkey.record" = "Click to record";
+
+"settings.language.subtitle" = "Choose the display language used by Quota";
+"settings.language.system" = "System";
+"settings.language.english" = "English";
+"settings.language.simplifiedChinese" = "Simplified Chinese";
+
+"validation.proxy.title" = "Invalid proxy address";
+"validation.proxy.message" = "Enter a complete proxy URL, such as http://127.0.0.1:7890 or socks5://127.0.0.1:1080.";
+"validation.hotkey.title" = "Invalid hotkey";
+"validation.hotkey.message" = "After enabling the global hotkey, record at least one modifier and one key.";
+
+"notification.permission.title" = "Notification Permission Required";
+"notification.permission.message" = "Quota needs notification permission to remind you when quota is low.\nPlease enable notifications for Quota in System Settings.";
+"notification.permission.openSettings" = "Open System Settings";
+"notification.permission.later" = "Later";
+
+"error.codexBinaryMissing" = "Codex executable not found";
+"error.missingRateLimitWindow" = "Quota response is missing window data";
+"error.invalidResponse" = "Unable to parse Codex response";
+
+"notification.lowQuota.fiveHour.title" = "%@ 5h quota %@";
+"notification.lowQuota.weekly.title" = "%@ Weekly quota %@";
+"notification.lowQuota.combined.title" = "%@ Quota %@";
+"notification.severity.warning" = "is low";
+"notification.severity.urgent" = "is urgent";
+"notification.severity.critical" = "is critically low";

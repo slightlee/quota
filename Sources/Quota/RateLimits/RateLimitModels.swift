@@ -7,17 +7,27 @@ struct RateLimitDisplayState: Equatable {
 }
 
 struct LimitWindowDisplay: Equatable {
-    var title: String
+    var kind: LimitWindowKind
     var usedPercent: Double
     var remainingPercent: Double
     var resetsAt: Date?
 
+    var title: String {
+        switch kind {
+        case .fiveHour:
+            return L.fiveHourTitle
+        case .weekly:
+            return L.weeklyTitle
+        }
+    }
+
     var resetText: String {
         guard let resetsAt else {
-            return "重置 --"
+            return "\(L.reset) --"
         }
 
-        return "重置 " + Self.resetFormatter.string(from: resetsAt)
+        Self.resetFormatter.locale = L.locale
+        return "\(L.reset) " + Self.resetFormatter.string(from: resetsAt)
     }
 
     private static let resetFormatter: DateFormatter = {
@@ -26,6 +36,11 @@ struct LimitWindowDisplay: Equatable {
         formatter.dateFormat = "M/d HH:mm"
         return formatter
     }()
+}
+
+enum LimitWindowKind: Equatable {
+    case fiveHour
+    case weekly
 }
 
 struct GetAccountRateLimitsResponse: Decodable {
@@ -58,18 +73,18 @@ extension GetAccountRateLimitsResponse {
         }
 
         return RateLimitDisplayState(
-            fiveHour: primary.display(title: "5小时"),
-            weekly: secondary.display(title: "周限额"),
+            fiveHour: primary.display(kind: .fiveHour),
+            weekly: secondary.display(kind: .weekly),
             updatedAt: now
         )
     }
 }
 
 private extension RateLimitWindow {
-    func display(title: String) -> LimitWindowDisplay {
+    func display(kind: LimitWindowKind) -> LimitWindowDisplay {
         let used = usedPercent.clamped(to: 0...100)
         return LimitWindowDisplay(
-            title: title,
+            kind: kind,
             usedPercent: used,
             remainingPercent: (100 - used).clamped(to: 0...100),
             resetsAt: resetsAt.map(Date.init(timeIntervalSince1970:))
@@ -92,11 +107,11 @@ enum CodexQuotaError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .codexBinaryMissing:
-            return "未找到 Codex 可执行文件"
+            return L.codexBinaryMissing
         case .missingRateLimitWindow:
-            return "额度响应缺少窗口数据"
+            return L.missingRateLimitWindow
         case .invalidResponse:
-            return "无法解析 Codex 响应"
+            return L.invalidResponse
         case .rpcError(let message):
             return message
         }

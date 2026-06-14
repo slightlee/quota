@@ -3,8 +3,8 @@ import AppKit
 final class MenuBarLimitView: NSView {
     private var model: String = "Codex"
     private var plan: String = ""
-    private var fiveHour = LimitWindowDisplay(title: "5小时", usedPercent: 0, remainingPercent: 0, resetsAt: nil)
-    private var weekly = LimitWindowDisplay(title: "周限额", usedPercent: 0, remainingPercent: 0, resetsAt: nil)
+    private var fiveHour = LimitWindowDisplay(kind: .fiveHour, usedPercent: 0, remainingPercent: 0, resetsAt: nil)
+    private var weekly = LimitWindowDisplay(kind: .weekly, usedPercent: 0, remainingPercent: 0, resetsAt: nil)
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -27,6 +27,10 @@ final class MenuBarLimitView: NSView {
     func configureModel(_ model: String, plan: String) {
         self.model = model
         self.plan = plan
+        needsDisplay = true
+    }
+
+    func reloadLocalizedText() {
         needsDisplay = true
     }
 
@@ -74,7 +78,7 @@ final class MenuBarLimitView: NSView {
             .foregroundColor: NSColor.labelColor
         ]
 
-        let remainText = "剩余"
+        let remainText = L.remaining
         let maxPercentText = "100%"
         let clamped = min(max(data.remainingPercent, 0), 100)
         let percentText = "\(Int(clamped.rounded()))%"

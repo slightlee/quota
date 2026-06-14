@@ -1,0 +1,60 @@
+enum LocalizationKey: String {
+    case settings = "settings.title"
+    case refresh = "menu.refresh"
+    case quit = "menu.quit"
+    case quotaTooltip = "quota.tooltip"
+    case errorPrefix = "error.prefix"
+    case refreshFailedPrefix = "refresh.failed.prefix"
+
+    case fiveHourTitle = "quota.window.fiveHour"
+    case weeklyTitle = "quota.window.weekly"
+    case remaining = "quota.remaining"
+    case reset = "quota.reset"
+
+    case proxy = "settings.tab.proxy"
+    case hotkey = "settings.tab.hotkey"
+    case language = "settings.tab.language"
+    case save = "settings.button.save"
+    case cancel = "settings.button.cancel"
+
+    case proxySubtitle = "settings.proxy.subtitle"
+    case proxyMode = "settings.proxy.mode"
+    case proxyAddress = "settings.proxy.address"
+    case proxyManualHelp = "settings.proxy.manualHelp"
+    case proxyAutomaticHelp = "settings.proxy.automaticHelp"
+    case proxyModeAutomatic = "settings.proxy.mode.automatic"
+    case proxyModeManual = "settings.proxy.mode.manual"
+    case proxyModeDisabled = "settings.proxy.mode.disabled"
+
+    case hotkeySubtitle = "settings.hotkey.subtitle"
+    case enableGlobalHotkey = "settings.hotkey.enable"
+    case openMenu = "settings.hotkey.openMenu"
+    case pressHotkey = "settings.hotkey.press"
+    case clickToRecordHotkey = "settings.hotkey.record"
+
+    case languageSubtitle = "settings.language.subtitle"
+    case languagePreferenceSystem = "settings.language.system"
+    case languagePreferenceEnglish = "settings.language.english"
+    case languagePreferenceSimplifiedChinese = "settings.language.simplifiedChinese"
+
+    case invalidProxyTitle = "validation.proxy.title"
+    case invalidProxyMessage = "validation.proxy.message"
+    case invalidHotkeyTitle = "validation.hotkey.title"
+    case invalidHotkeyMessage = "validation.hotkey.message"
+
+    case notificationPermissionTitle = "notification.permission.title"
+    case notificationPermissionMessage = "notification.permission.message"
+    case openSystemSettings = "notification.permission.openSettings"
+    case later = "notification.permission.later"
+
+    case codexBinaryMissing = "error.codexBinaryMissing"
+    case missingRateLimitWindow = "error.missingRateLimitWindow"
+    case invalidResponse = "error.invalidResponse"
+
+    case lowQuotaFiveHourTitle = "notification.lowQuota.fiveHour.title"
+    case lowQuotaWeeklyTitle = "notification.lowQuota.weekly.title"
+    case lowQuotaCombinedTitle = "notification.lowQuota.combined.title"
+    case severityWarning = "notification.severity.warning"
+    case severityUrgent = "notification.severity.urgent"
+    case severityCritical = "notification.severity.critical"
+}

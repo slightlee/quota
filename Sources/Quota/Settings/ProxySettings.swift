@@ -4,17 +4,6 @@ enum ProxyMode: String, CaseIterable {
     case automatic
     case manual
     case disabled
-
-    var displayTitle: String {
-        switch self {
-        case .automatic:
-            return "自动"
-        case .manual:
-            return "手动"
-        case .disabled:
-            return "关闭"
-        }
-    }
 }
 
 struct ProxyConfiguration: Equatable {

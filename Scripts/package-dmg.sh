@@ -67,7 +67,7 @@ rm -rf "$MOUNT_DIR"
 mkdir -p "$MOUNT_DIR"
 hdiutil attach "$TMP_DMG_PATH" -readwrite -noverify -noautoopen -mountpoint "$MOUNT_DIR" -quiet
 
-osascript <<APPLESCRIPT
+if osascript <<APPLESCRIPT
 tell application "Finder"
   with timeout of 30 seconds
     set dmgFolder to POSIX file "$MOUNT_DIR" as alias
@@ -92,6 +92,11 @@ tell application "Finder"
   end timeout
 end tell
 APPLESCRIPT
+then
+  echo "  Finder window layout saved"
+else
+  echo "Warning: failed to customize Finder window; continuing with default DMG layout" >&2
+fi
 
 rm -rf "$MOUNT_DIR/.fseventsd"
 sync

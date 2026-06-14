@@ -13,9 +13,10 @@ struct ManagedProcessRegistry {
         self.recordURL = quotaDirectory.appendingPathComponent("app-server.pid")
     }
 
-    /// 只清理 Quota 自己上次写下的 app-server PID 记录。
+    /// Cleans up only the app-server PID record written by Quota.
     ///
-    /// 仅当该 PID 仍然对应 `codex app-server --listen stdio://` 且父进程已死亡时才会终止。
+    /// Terminates the process only when it is still `codex app-server --listen stdio://`
+    /// and its parent process is already gone.
     func cleanupOrphanIfNeeded() {
         guard let rawValue = try? String(contentsOf: recordURL, encoding: .utf8),
               let pid = Int(rawValue.trimmingCharacters(in: .whitespacesAndNewlines)),

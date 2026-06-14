@@ -1,6 +1,6 @@
 import AppKit
 
-// MARK: - 常量
+// MARK: - Constants
 
 private enum Layout {
     static let windowWidth: CGFloat = 480
@@ -125,24 +125,24 @@ private final class SettingsViewController: NSViewController {
         keyRecorder.configure(displayString: hotkeyConfiguration.displayString)
     }
 
-    // MARK: - UI 构建
+    // MARK: - UI Construction
 
     private func setupUI() {
-        // ── Tab 切换 ──
+        // ── Tab switcher ──
         tabControl.selectedSegment = 0
         tabControl.target = self
         tabControl.action = #selector(tabChanged)
 
-        // ── 代理页内容 ──
+        // ── Proxy tab content ──
         setupProxyTab()
         proxyContainer.translatesAutoresizingMaskIntoConstraints = false
 
-        // ── 快捷键页内容 ──
+        // ── Hotkey tab content ──
         setupHotkeyTab()
         hotkeyContainer.translatesAutoresizingMaskIntoConstraints = false
         hotkeyContainer.isHidden = true
 
-        // ── 按钮行 ──
+        // ── Button row ──
         saveButton.bezelStyle = .rounded
         saveButton.keyEquivalent = "\r"
         saveButton.target = self
@@ -161,7 +161,7 @@ private final class SettingsViewController: NSViewController {
         buttonRow.spacing = 10
         buttonRow.alignment = .centerY
 
-        // ── 根布局 ──
+        // ── Root layout ──
         let rootStack = NSStackView(views: [tabControl, proxyContainer, hotkeyContainer, buttonRow])
         rootStack.orientation = .vertical
         rootStack.alignment = .leading
@@ -282,7 +282,7 @@ private final class SettingsViewController: NSViewController {
         return row
     }
 
-    // MARK: - Tab 切换
+    // MARK: - Tab Switching
 
     @objc private func tabChanged() {
         let isProxy = tabControl.selectedSegment == 0
@@ -290,7 +290,7 @@ private final class SettingsViewController: NSViewController {
         hotkeyContainer.isHidden = isProxy
     }
 
-    // MARK: - 逻辑
+    // MARK: - Logic
 
     private func currentProxyConfiguration() -> ProxyConfiguration {
         let mode = ProxyMode.allCases[safe: modeControl.selectedSegment] ?? .automatic

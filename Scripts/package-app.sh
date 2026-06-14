@@ -9,7 +9,7 @@ ICONSET_DIR="$ROOT_DIR/Assets/AppIcon.iconset"
 ICON_FILE="$APP_DIR/Contents/Resources/AppIcon.icns"
 MENU_BAR_ICON="$ROOT_DIR/Sources/Quota/Resources/MenuBarIcon.png"
 
-# 支持 universal binary 路径（--arch 构建）和默认路径
+# Support both universal binary paths built with --arch and default paths.
 BUILD_DIR="$ROOT_DIR/.build/apple/Products/Release"
 EXECUTABLE="$BUILD_DIR/$APP_NAME"
 if [[ ! -f "$EXECUTABLE" ]]; then

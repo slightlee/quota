@@ -30,14 +30,14 @@ struct ProxyEnvironmentBuilder {
             if !proxyURL.isEmpty {
                 Self.applyProxy(proxyURL, to: &environment)
             }
-            // 清除 automatic 模式可能残留的 bypass 列表。
+            // Clear any bypass list left by automatic mode.
             environment.removeValue(forKey: "NO_PROXY")
             environment.removeValue(forKey: "no_proxy")
         case .disabled:
             for key in proxyKeys {
                 environment.removeValue(forKey: key)
             }
-            // 显式设置 NO_PROXY=* 确保子进程跳过所有代理。
+            // Force child processes to bypass all proxies.
             environment["NO_PROXY"] = "*"
             environment["no_proxy"] = "*"
         }

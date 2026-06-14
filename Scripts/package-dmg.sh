@@ -26,7 +26,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# ── 1. 构建 .app ──
+# ── 1. Build .app ──
 echo "▸ Building $APP_NAME.app ..."
 SKIP_SWIFT_BUILD=1 bash "$PACKAGE_SCRIPT"
 
@@ -36,7 +36,7 @@ if [[ ! -d "$APP_DIR" ]]; then
   exit 1
 fi
 
-# ── 2. 准备 DMG 内容 ──
+# ── 2. Prepare DMG contents ──
 echo "▸ Preparing DMG contents ..."
 rm -rf "$STAGING_DIR"
 mkdir -p "$STAGING_DIR"
@@ -44,11 +44,11 @@ mkdir -p "$STAGING_DIR"
 cp -R "$APP_DIR" "$STAGING_DIR/$APP_NAME.app"
 ln -s /Applications "$STAGING_DIR/Applications"
 
-# ── 3. 计算 DMG 大小 ──
+# ── 3. Calculate DMG size ──
 APP_SIZE_KB=$(du -sk "$STAGING_DIR" | awk '{print $1}')
-DMG_SIZE_KB=$((APP_SIZE_KB + 2048))  # 额外空间
+DMG_SIZE_KB=$((APP_SIZE_KB + 2048))  # Extra space
 
-# ── 4. 生成 DMG ──
+# ── 4. Create DMG ──
 echo "▸ Creating $DMG_NAME ..."
 rm -f "$DMG_PATH" "$TMP_DMG_PATH"
 
@@ -61,7 +61,7 @@ hdiutil create \
   -size "${DMG_SIZE_KB}k" \
   "$TMP_DMG_PATH"
 
-# ── 5. 设置 Finder 窗口布局 ──
+# ── 5. Configure Finder window layout ──
 echo "▸ Customizing Finder window ..."
 rm -rf "$MOUNT_DIR"
 mkdir -p "$MOUNT_DIR"
@@ -103,13 +103,13 @@ sync
 hdiutil detach "$MOUNT_DIR" -quiet
 rm -rf "$MOUNT_DIR"
 
-# ── 6. 转换为压缩只读 DMG ──
+# ── 6. Convert to compressed read-only DMG ──
 hdiutil convert "$TMP_DMG_PATH" \
   -format UDBZ \
   -o "$DMG_PATH" \
   -quiet
 
-# ── 7. 清理 ──
+# ── 7. Clean up ──
 rm -rf "$STAGING_DIR"
 rm -f "$TMP_DMG_PATH"
 

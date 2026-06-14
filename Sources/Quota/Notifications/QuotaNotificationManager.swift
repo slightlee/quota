@@ -2,13 +2,13 @@ import AppKit
 import Foundation
 import UserNotifications
 
-// MARK: - 阈值定义
+// MARK: - Threshold Definitions
 
-/// 通知阈值级别，按严重程度升序排列
+/// Notification threshold levels ordered by severity.
 private enum NotifyThreshold: Int, CaseIterable, Comparable {
-    case warning = 0   // 20% — 轻度提醒
-    case urgent = 1    // 10% — 紧急
-    case critical = 2  //  5% — 严重
+    case warning = 0   // 20% — warning
+    case urgent = 1    // 10% — urgent
+    case critical = 2  //  5% — critical
 
     var percent: Double {
         switch self {
@@ -35,7 +35,7 @@ private enum NotifyThreshold: Int, CaseIterable, Comparable {
     }
 }
 
-/// 系统通知授权状态。
+/// System notification authorization state.
 private enum NotificationAuthorizationState {
     case pending
     case authorized
@@ -50,21 +50,22 @@ private struct PendingNotification {
 
 // MARK: - QuotaNotificationManager
 
-/// 低配额通知管理器
+/// Low-quota notification manager.
 ///
-/// 监听配额变化，在任一窗口跌破阈值时发送合并通知。
-/// 每个阈值级别对每个窗口只通知一次，配额恢复后重置。
+/// Observes quota changes and sends one combined notification when either window
+/// crosses a threshold. Each threshold is notified once per window and resets
+/// after quota recovery.
 @MainActor
 final class QuotaNotificationManager: RateLimitServiceObserver {
-    /// 是否运行在 .app bundle 中（UNUserNotificationCenter 需要 bundle 环境）
+    /// Whether the app is running inside a .app bundle required by UNUserNotificationCenter.
     private let available: Bool
     private let center: UNUserNotificationCenter?
-    /// 用户通知授权状态；首次安装启动时授权请求是异步完成的。
+    /// User notification authorization state; first-launch authorization is asynchronous.
     private var authorizationState: NotificationAuthorizationState = .pending
     private var pendingNotification: PendingNotification?
     private var hasPromptedEnableNotifications = false
 
-    /// 每个窗口已通知的最高阈值
+    /// Highest notified threshold per quota window.
     private var fiveHourNotified: NotifyThreshold?
     private var weeklyNotified: NotifyThreshold?
 
@@ -96,10 +97,10 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
     }
 
     func rateLimitService(_ service: RateLimitService, didFail error: Error, lastState: RateLimitDisplayState?) {
-        // 通知失败时不处理，等待下次刷新
+        // Ignore failures here and wait for the next refresh.
     }
 
-    // MARK: - 通知逻辑
+    // MARK: - Notification Logic
 
     private func checkAndNotify(state: RateLimitDisplayState) {
         let fiveRemaining = state.fiveHour.remainingPercent
@@ -107,7 +108,7 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
 
         debugLog("[Quota] checkAndNotify: 5h=\(Int(fiveRemaining))%, weekly=\(Int(weeklyRemaining))%, authorization=\(authorizationState)")
 
-        // 配额恢复检测：剩余超过 50% 说明已进入新窗口
+        // Treat remaining quota above 50% as a new quota window.
         if fiveRemaining > 50 {
             fiveHourNotified = nil
         }
@@ -115,7 +116,7 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
             weeklyNotified = nil
         }
 
-        // 检查是否有新的阈值需要通知
+        // Check whether new thresholds need notification.
         let fiveCrossed = findNewCrossedThresholds(remaining: fiveRemaining, notified: fiveHourNotified)
         let weeklyCrossed = findNewCrossedThresholds(remaining: weeklyRemaining, notified: weeklyNotified)
 
@@ -126,13 +127,13 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
             return
         }
 
-        // 确定通知严重程度（取两者中最紧急的）
+        // Use the most severe threshold crossed by either window.
         let maxThreshold = max(
             fiveCrossed.max() ?? .warning,
             weeklyCrossed.max() ?? .warning
         )
 
-        // 构建并发送合并通知
+        // Build and send one combined notification.
         let content = buildNotificationContent(
             state: state,
             fiveCrossed: fiveCrossed,
@@ -152,14 +153,14 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
         }
     }
 
-    /// 查找该窗口新跌破的阈值（从低到高扫描，返回所有新级别）
+    /// Finds newly crossed thresholds for a quota window.
     private func findNewCrossedThresholds(remaining: Double, notified: NotifyThreshold?) -> [NotifyThreshold] {
         NotifyThreshold.allCases.filter { threshold in
             remaining < threshold.percent && (notified == nil || threshold > notified!)
         }
     }
 
-    // MARK: - 构建通知内容
+    // MARK: - Notification Content
 
     private func buildNotificationContent(
         state: RateLimitDisplayState,
@@ -169,21 +170,21 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
     ) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
 
-        // 标题：突出最紧急的窗口
+        // Title highlights the most urgent quota window.
         content.title = buildTitle(
             fiveCrossed: fiveCrossed,
             weeklyCrossed: weeklyCrossed,
             severity: severity
         )
 
-        // 正文：两个窗口的详细状态
+        // Body includes detailed status for both quota windows.
         content.body = buildBody(
             state: state,
             fiveCrossed: fiveCrossed,
             weeklyCrossed: weeklyCrossed
         )
 
-        // Alert 样式需要有 sound 才能弹窗
+        // Alert-style notifications need a sound to pop up.
         if severity.usesAlert {
             content.sound = .default
         }
@@ -221,7 +222,7 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
         return "5小时 \(fivePercent)%\(fiveMarker)\(fiveReset)\n周限额 \(weeklyPercent)%\(weeklyMarker)\(weeklyReset)"
     }
 
-    // MARK: - 辅助方法
+    // MARK: - Helpers
 
     private func severityLabel(_ threshold: NotifyThreshold) -> String {
         switch threshold {
@@ -231,7 +232,7 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
         }
     }
 
-    // MARK: - 发送通知
+    // MARK: - Delivery
 
     private func scheduleNotification(
         _ pending: PendingNotification,
@@ -340,7 +341,7 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
     private func requestAuthorization() {
         guard let center else { return }
 
-        // 先检查当前授权状态，已拒绝过的不会再次弹出系统确认框
+        // Check current authorization first; denied apps cannot show the system prompt again.
         center.getNotificationSettings { [weak self] settings in
             guard let self else { return }
 
@@ -385,7 +386,7 @@ final class QuotaNotificationManager: RateLimitServiceObserver {
         promptEnableNotifications()
     }
 
-    /// 弹窗提示用户开启通知权限
+    /// Prompts the user to enable notification permission.
     private func promptEnableNotifications() {
         let alert = NSAlert()
         alert.messageText = "需要通知权限"

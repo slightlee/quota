@@ -58,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     // MARK: - UNUserNotificationCenterDelegate
 
-    /// 前台时也展示通知（菜单栏应用常驻运行，需要此回调）
+    /// Shows notifications while the menu bar app is in the foreground.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification,
@@ -113,8 +113,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
     }
 
     private func proxySettingsDidChange() {
-        client.stop(notifyPending: false)      // 杀旧进程
-        loadAccountMetadata()                   // 读账户信息（ensureStarted 会启动新进程）
-        rateLimitService.reconnectAndRefresh()  // 刷新配额（ensureStarted 有守卫，不会重复启动）
+        client.stop(notifyPending: false)      // Stop the old process.
+        loadAccountMetadata()                   // Read account metadata; ensureStarted starts a new process.
+        rateLimitService.reconnectAndRefresh()  // Refresh quota; ensureStarted prevents duplicate starts.
     }
 }

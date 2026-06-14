@@ -16,7 +16,7 @@ final class RateLimitService {
     private var refreshTimeoutTimer: DispatchSourceTimer?
     private var observers = NSHashTable<AnyObject>.weakObjects()
     private var isRefreshing = false
-    /// 每次 refresh 递增，超时或新请求后旧回调自动失效
+    /// Increments on every refresh so stale callbacks are ignored after timeout or newer requests.
     private var refreshGeneration = 0
     private(set) var state: RateLimitDisplayState?
 
@@ -94,7 +94,7 @@ final class RateLimitService {
         }
     }
 
-    /// 超时保护：如果回调迟迟不来，强制重置 isRefreshing
+    /// Timeout guard that resets isRefreshing when the callback never arrives.
     private func startRefreshTimeout() {
         refreshTimeoutTimer?.cancel()
         let timer = DispatchSource.makeTimerSource(queue: mainQueue)

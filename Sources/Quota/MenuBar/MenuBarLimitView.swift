@@ -103,7 +103,7 @@ final class MenuBarLimitView: NSView {
             fillPath.fill()
         }
 
-        // "剩余" label
+        // Remaining label
         let remainX = barX + barW + barGap
         remainText.draw(at: NSPoint(x: remainX, y: barY - 2), withAttributes: remainAttr)
 

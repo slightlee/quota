@@ -8,7 +8,7 @@ struct CodexBinaryLocator {
         self.fileManager = fileManager
     }
 
-    /// 按优先级查找 codex 二进制：CLI > Codex.app。
+    /// Locates the codex binary by priority: CLI first, then Codex.app.
     func locate() -> URL {
         if let cliPath = findCLI() {
             debugLog("[Quota] found CLI codex at \(cliPath)")
@@ -24,7 +24,7 @@ struct CodexBinaryLocator {
         return codexAppBinaryURL
     }
 
-    /// 通过 which 命令查找 CLI 路径。
+    /// Locates the CLI path through the which command.
     private func findCLI() -> URL? {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/bin/which")

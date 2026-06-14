@@ -180,7 +180,7 @@ final class CodexAppServerClient {
         callbacks.forEach { $0(result) }
     }
 
-    /// 进程异常退出后自动重连，指数退避（1s → 2s → 4s → ... → 30s）
+    /// Reconnects after an unexpected process exit with exponential backoff.
     private func scheduleReconnect() {
         reconnectTimer?.cancel()
 
@@ -192,14 +192,14 @@ final class CodexAppServerClient {
         timer.setEventHandler { [weak self] in
             guard let self else { return }
             self.reconnectTimer = nil
-            // 重连时通过 ensureStarted 重新启动进程
+            // Restart the process through ensureStarted during reconnect.
             self.ensureStarted { result in
                 switch result {
                 case .success:
                     debugLog("[Quota] auto-reconnect succeeded")
-                    self.reconnectDelay = 1  // 成功后重置退避
+                    self.reconnectDelay = 1  // Reset backoff after success.
                 case .failure:
-                    // 失败后继续退避重连
+                    // Keep backing off after failures.
                     self.reconnectDelay = min(self.reconnectDelay * 2, Self.maxReconnectDelay)
                     self.scheduleReconnect()
                 }
@@ -228,7 +228,7 @@ final class CodexAppServerClient {
             return
         }
 
-        // 只回收 Quota 自己上次遗留的 app-server 记录
+        // Reclaim only Quota's own stale app-server record.
         managedProcessRegistry.cleanupOrphanIfNeeded()
 
         do {

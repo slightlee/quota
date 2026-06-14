@@ -29,15 +29,11 @@ Quota is a lightweight macOS menu bar app for monitoring [Codex](https://github.
 
 ### Menu Bar
 
-![Menu bar quota view](Docs/Images/menu-bar.png)
+![Menu bar quota view](Docs/Images/menu-bar-en.png)
 
-### Touch Bar
+### Low Quota Notifications
 
-![Touch Bar quota view](Docs/Images/touch-bar.jpg)
-
-### Low Quota Notification
-
-![Low quota notification](Docs/Images/notification.png)
+![Low quota notifications](Docs/Images/notification-en.png)
 
 ## Installation
 

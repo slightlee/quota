@@ -31,6 +31,8 @@ Quota 是一个轻量级 macOS 菜单栏应用，用于实时查看 [Codex](http
 
 ![菜单栏配额视图](Docs/Images/menu-bar.png)
 
+![浅色菜单栏配额视图](Docs/Images/menu-bar-light.png)
+
 ### Touch Bar
 
 ![Touch Bar 配额视图](Docs/Images/touch-bar.jpg)

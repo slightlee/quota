@@ -7,6 +7,7 @@
 
 "quota.window.fiveHour" = "5小时";
 "quota.window.weekly" = "周限额";
+"quota.window.mimoTokenPlan" = "套餐额度";
 "quota.remaining" = "剩余";
 "quota.reset" = "重置";
 "quota.window.noData" = "暂无数据";
@@ -48,6 +49,10 @@
 "settings.providers.help" = "服务将按此顺序显示在弹窗顶部，并同步显示在 Touch Bar。";
 "settings.providers.selectedCount" = "已选择 %d/%d";
 "settings.providers.dragHint" = "拖动排序";
+"settings.providers.mimoCookie.label" = "MiMo Cookie";
+"settings.providers.mimoCookie.placeholder" = "粘贴控制台的 Cookie 请求头";
+"settings.providers.mimoCookie.help" = "MiMoCode 登录和区域会自动识别。小米额度接口还需要已登录 platform.xiaomimimo.com 的 Cookie，仅保存在 macOS 钥匙串中。";
+"settings.providers.mimoCookie.saveErrorTitle" = "无法保存 MiMo Cookie";
 
 "validation.proxy.title" = "代理地址无效";
 "validation.proxy.message" = "请输入完整的代理地址，例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:1080。";
@@ -70,6 +75,12 @@
 "error.claudeNotSignedIn" = "Claude Code 未登录，请先运行 claude 并登录";
 "error.claudeTokenExpired" = "Claude Code 登录已过期，运行一次 claude 即可刷新";
 "error.claudeRequestFailed" = "Claude 请求失败（HTTP %d）";
+"error.mimoCodeNotSignedIn" = "MiMoCode 尚未登录小米，请先运行 mimo 并完成登录";
+"error.mimoCodeInvalidAuth" = "无法读取 MiMoCode auth.json 中的小米账号";
+"error.mimoCookieMissing" = "缺少 MiMo 控制台 Cookie，请在“设置 → 服务”中填写";
+"error.mimoUnauthorized" = "MiMo 控制台 Cookie 缺失或已过期";
+"error.mimoRequestFailed" = "MiMo 请求失败（代码 %d）";
+"error.mimoKeychainWriteFailed" = "无法将 MiMo 控制台 Cookie 保存到 macOS 钥匙串";
 
 "notification.severity.warning" = "不足";
 "notification.severity.urgent" = "告急";

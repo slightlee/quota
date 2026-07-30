@@ -15,6 +15,7 @@ enum L {
 
     static var fiveHourTitle: String { tr(.fiveHourTitle) }
     static var weeklyTitle: String { tr(.weeklyTitle) }
+    static var mimoTokenPlanTitle: String { tr(.mimoTokenPlanTitle) }
     static var remaining: String { tr(.remaining) }
     static var reset: String { tr(.reset) }
     static var noData: String { tr(.noData) }
@@ -51,6 +52,10 @@ enum L {
         tr(.providersSelectedCount, selected, max)
     }
     static var providersDragHint: String { tr(.providersDragHint) }
+    static var mimoCookieLabel: String { tr(.mimoCookieLabel) }
+    static var mimoCookiePlaceholder: String { tr(.mimoCookiePlaceholder) }
+    static var mimoCookieHelp: String { tr(.mimoCookieHelp) }
+    static var mimoCookieSaveErrorTitle: String { tr(.mimoCookieSaveErrorTitle) }
 
     static var invalidProxyTitle: String { tr(.invalidProxyTitle) }
     static var invalidProxyMessage: String { tr(.invalidProxyMessage) }
@@ -73,6 +78,12 @@ enum L {
     static var claudeNotSignedIn: String { tr(.claudeNotSignedIn) }
     static var claudeTokenExpired: String { tr(.claudeTokenExpired) }
     static func claudeRequestFailed(_ statusCode: Int) -> String { tr(.claudeRequestFailed, statusCode) }
+    static var mimoCodeNotSignedIn: String { tr(.mimoCodeNotSignedIn) }
+    static var mimoCodeInvalidAuth: String { tr(.mimoCodeInvalidAuth) }
+    static var mimoCookieMissing: String { tr(.mimoCookieMissing) }
+    static var mimoUnauthorized: String { tr(.mimoUnauthorized) }
+    static func mimoRequestFailed(_ statusCode: Int) -> String { tr(.mimoRequestFailed, statusCode) }
+    static var mimoKeychainWriteFailed: String { tr(.mimoKeychainWriteFailed) }
 
     static func proxyModeTitle(_ mode: ProxyMode) -> String {
         switch mode {

@@ -4,7 +4,7 @@ import AppKit
 
 private enum Layout {
     static let windowWidth: CGFloat = 480
-    static let windowHeight: CGFloat = 360
+    static let windowHeight: CGFloat = 440
     static let padding: CGFloat = 24
     static let labelWidth: CGFloat = 76
     static let rowSpacing: CGFloat = 12
@@ -136,6 +136,9 @@ private final class SettingsViewController: NSViewController {
     private let providersSelectedCountLabel = NSTextField(labelWithString: "")
     private let providersHelpLabel = NSTextField(wrappingLabelWithString: "")
     private let providerListView = ProviderListSettingsView()
+    private let mimoCookieLabel = NSTextField(labelWithString: "")
+    private let mimoCookieField = NSSecureTextField(string: "")
+    private let mimoCookieHelpLabel = NSTextField(wrappingLabelWithString: "")
     private var providerListHeightConstraint: NSLayoutConstraint?
     // About
     private let aboutSubtitleLabel = NSTextField(labelWithString: "")
@@ -157,6 +160,7 @@ private final class SettingsViewController: NSViewController {
     private var pendingHotkeyCode: UInt32 = 0
     private var pendingHotkeyModifiers: UInt32 = 0
     private var providerOptions: [ProviderSettingsOption] = []
+    private var loadedMiMoCookie = ""
 
     override func loadView() {
         view = NSView(frame: NSRect(x: 0, y: 0, width: Layout.windowWidth, height: Layout.windowHeight))
@@ -211,6 +215,7 @@ private final class SettingsViewController: NSViewController {
         keyRecorder.configure(displayString: hotkeyConfiguration.displayString)
 
         reloadProviderControls(configuration: providerConfiguration)
+        reloadMiMoCookie()
     }
 
     // MARK: - UI Construction
@@ -434,8 +439,28 @@ private final class SettingsViewController: NSViewController {
             self?.updateProviderListHeight()
         }
 
+        configureLabel(mimoCookieLabel)
+        mimoCookieField.placeholderString = L.mimoCookiePlaceholder
+        mimoCookieField.target = self
+        mimoCookieField.action = #selector(valueChanged)
+        mimoCookieField.translatesAutoresizingMaskIntoConstraints = false
+        let mimoCookieRow = makeRow(label: mimoCookieLabel, control: mimoCookieField)
+
+        mimoCookieHelpLabel.font = .systemFont(ofSize: 11)
+        mimoCookieHelpLabel.textColor = .tertiaryLabelColor
+        mimoCookieHelpLabel.maximumNumberOfLines = 3
+        mimoCookieHelpLabel.lineBreakMode = .byWordWrapping
+
         // `.width` so header / list / help all span the full settings column.
-        let stack = NSStackView(views: [header, providerListView, providersHelpLabel])
+        let stack = NSStackView(
+            views: [
+                header,
+                providerListView,
+                providersHelpLabel,
+                mimoCookieRow,
+                mimoCookieHelpLabel,
+            ]
+        )
         stack.orientation = .vertical
         stack.alignment = .width
         stack.spacing = 10
@@ -453,6 +478,7 @@ private final class SettingsViewController: NSViewController {
             stack.trailingAnchor.constraint(equalTo: providersContainer.trailingAnchor),
             stack.bottomAnchor.constraint(lessThanOrEqualTo: providersContainer.bottomAnchor),
             heightConstraint,
+            mimoCookieField.widthAnchor.constraint(greaterThanOrEqualToConstant: 260),
         ])
     }
 
@@ -583,6 +609,9 @@ private final class SettingsViewController: NSViewController {
 
         providersSubtitleLabel.stringValue = L.providersSubtitle
         providersHelpLabel.stringValue = L.providersHelp
+        mimoCookieLabel.stringValue = L.mimoCookieLabel
+        mimoCookieField.placeholderString = L.mimoCookiePlaceholder
+        mimoCookieHelpLabel.stringValue = L.mimoCookieHelp
         updateProvidersSelectedCount()
 
         aboutSubtitleLabel.stringValue = L.aboutSubtitle
@@ -640,6 +669,11 @@ private final class SettingsViewController: NSViewController {
         providerListView.configure(options: providerOptions, configuration: configuration)
     }
 
+    private func reloadMiMoCookie() {
+        loadedMiMoCookie = MiMoAuthStore.shared.savedSessionCookie()
+        mimoCookieField.stringValue = loadedMiMoCookie
+    }
+
     @objc private func save() {
         let proxyConfig = currentProxyConfiguration()
         if proxyConfig.mode == .manual {
@@ -653,6 +687,18 @@ private final class SettingsViewController: NSViewController {
         if hotkeyConfig.isEnabled {
             guard hotkeyConfig.isValid else {
                 presentHotkeyValidationError()
+                return
+            }
+        }
+
+        let mimoCookie = mimoCookieField.stringValue
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if mimoCookie != loadedMiMoCookie {
+            do {
+                try MiMoAuthStore.shared.saveSessionCookie(mimoCookie)
+                loadedMiMoCookie = mimoCookie
+            } catch {
+                presentMiMoCookieSaveError(error)
                 return
             }
         }
@@ -681,6 +727,18 @@ private final class SettingsViewController: NSViewController {
         let alert = NSAlert()
         alert.messageText = L.invalidHotkeyTitle
         alert.informativeText = L.invalidHotkeyMessage
+        alert.alertStyle = .warning
+        if let window = view.window ?? NSApp.keyWindow {
+            alert.beginSheetModal(for: window) { _ in }
+        } else {
+            alert.runModal()
+        }
+    }
+
+    private func presentMiMoCookieSaveError(_ error: Error) {
+        let alert = NSAlert()
+        alert.messageText = L.mimoCookieSaveErrorTitle
+        alert.informativeText = error.localizedDescription
         alert.alertStyle = .warning
         if let window = view.window ?? NSApp.keyWindow {
             alert.beginSheetModal(for: window) { _ in }

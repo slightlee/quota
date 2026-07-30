@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md)
 
-Quota is a lightweight macOS menu bar app for monitoring AI coding quota — [Codex](https://github.com/openai/codex), [Claude](https://claude.com/claude-code) (Claude Code), and [Grok](https://x.ai) (Grok Build / CLI).
+Quota is a lightweight macOS menu bar app for monitoring AI coding quota — [Codex](https://github.com/openai/codex), [Claude](https://claude.com/claude-code) (Claude Code), [Grok](https://x.ai) (Grok Build / CLI), and [Xiaomi MiMo](https://github.com/XiaomiMiMo/MiMo-Code) (MiMoCode / Token Plan).
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-macOS%2014%2B-blue" alt="macOS 14+">
@@ -11,13 +11,17 @@ Quota is a lightweight macOS menu bar app for monitoring AI coding quota — [Co
 </p>
 
 > [!NOTE]
-> **Codex:** requires Codex CLI, ChatGPT.app, or Codex.app, with an account that exposes rate limit data.  
-> **Claude:** requires Claude Code signed in (`claude`). Quota reads the login token from the macOS Keychain (via the system `security` tool — no permission prompt).  
+> **Codex:** requires Codex CLI, ChatGPT.app, or Codex.app, with an account that exposes rate limit data.
+>
+> **Claude:** requires Claude Code signed in (`claude`). Quota reads the login token from the macOS Keychain (via the system `security` tool — no permission prompt).
+>
 > **Grok:** requires Grok CLI signed in (`grok login`). Some networks need a proxy to reach Grok billing.
+>
+> **MiMo:** requires MiMoCode signed in to Xiaomi and a Token Plan. Xiaomi's quota endpoint uses the web-console session rather than the `tp-...` API key; add the console Cookie in **Settings → Providers**.
 
 ## Features
 
-- Menu bar popup for **Codex** (5-hour + weekly limits, reset credits when available), **Claude** (5-hour session + weekly limits, including per-model weekly pools), and **Grok** (weekly usage pool)
+- Menu bar popup for **Codex** (5-hour + weekly limits, reset credits when available), **Claude** (5-hour session + weekly limits, including per-model weekly pools), **Grok** (weekly usage pool), and **MiMo** (Token Plan Credits)
 - Provider filter tabs: All / each enabled provider; enable up to 5 providers and drag to reorder in Settings
 - First enabled provider in the list is primary: leftmost provider tab, status-item summary, and Touch Bar when available
 - macOS notifications when remaining quota is low (per provider / window)
@@ -89,6 +93,17 @@ After launch, Quota appears in the menu bar. Wait a few seconds for the first re
 |----------|-------------|--------------|
 | **Codex** | Local `codex app-server` (`account/rateLimits/read`) | 5-hour + weekly windows; reset credits when available |
 | **Grok** | Local `~/.grok/auth.json` + Grok CLI billing API | Weekly usage window (same source as Grok CLI `/usage`) |
+| **Claude** | Claude Code OAuth login + Anthropic usage API | 5-hour session and weekly pools |
+| **MiMo** | MiMoCode `auth.json` + Xiaomi Token Plan console | Combined plan and compensation Credits |
+
+#### Xiaomi MiMo setup
+
+1. Run `mimo` and sign in to the `xiaomi` provider. Quota automatically reads the account and regional Base URL from MiMoCode's `auth.json`.
+2. Sign in at [Xiaomi MiMo Token Plan](https://platform.xiaomimimo.com/console/plan-manage).
+3. In browser Developer Tools, copy the complete `Cookie` request header from a request to `platform.xiaomimimo.com`.
+4. Open **Quota → Settings → Providers**, paste it into **MiMo Cookie**, and save.
+
+The Cookie is stored only in macOS Keychain. It is never written to Quota preferences or the repository. If MiMo later shows an authorization error, repeat steps 2–4 to refresh the expired web session.
 
 ### Notification Thresholds
 
@@ -147,19 +162,22 @@ The DMG includes a Finder installer layout with `Quota.app` on the left and an `
 
 - **Codex:** starts a local `app-server` child process and reads rate limits over JSON-RPC (stdin/stdout). Prefers `codex` on `PATH`, then the binary bundled with ChatGPT.app or Codex.app.
 - **Grok:** reads the OIDC access token from `~/.grok/auth.json` (after `grok login`) and calls the same billing endpoint the Grok CLI uses for usage.
+- **Claude:** reads the Claude Code OAuth login and calls Anthropic's usage endpoint.
+- **MiMo:** discovers the signed-in Xiaomi provider from MiMoCode and calls the Token Plan console usage endpoint with the web-session Cookie stored in Keychain.
 - Data refreshes about every 2 minutes.
 
 ## Privacy
 
 Quota reads quota data on your machine through local CLI/login state and provider endpoints. It does not upload quota or account data to any third-party analytics service of its own.
 
-Proxy, hotkey, language, and provider settings are stored locally in macOS app preferences.
+Proxy, hotkey, language, and provider settings are stored locally in macOS app preferences. The MiMo console Cookie is stored separately in macOS Keychain.
 
 ## Troubleshooting
 
 - **No menu bar icon:** launch `Quota.app` from `Applications`, not the raw `.build/release/Quota` binary.
 - **No Codex data:** install Codex CLI, ChatGPT.app, or Codex.app; sign in with an account that exposes rate limits; ensure `codex` is on `PATH` or the app is in `/Applications`.
 - **No Grok data:** run `grok login` so `~/.grok/auth.json` exists; if requests time out, enable a proxy (Settings → Proxy) on restricted networks.
+- **No MiMo data:** run `mimo` and sign in to Xiaomi, then update **Settings → Providers → MiMo Cookie** from a signed-in Xiaomi console request.
 - **No notifications:** allow notifications for Quota in System Settings (requires a proper `.app` bundle).
 
 ## Requirements
@@ -167,6 +185,8 @@ Proxy, hotkey, language, and provider settings are stored locally in macOS app p
 - macOS 14 Sonoma or later
 - For Codex: Codex CLI, ChatGPT.app, or Codex.app + account with rate limit data
 - For Grok: Grok CLI signed in (`grok login`)
+- For Claude: Claude Code signed in
+- For MiMo: MiMoCode signed in to Xiaomi + an active Token Plan
 
 ## Development
 

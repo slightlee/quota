@@ -22,6 +22,25 @@ final class TouchBarLimitView: NSView {
 
     func update(with state: ProviderQuotaState) {
         self.state = state
+
+        // MiMo exposes one monthly Token Plan pool. Render it as one centered
+        // row and use the real plan name (e.g. "Lite") as the row title.
+        if state.providerID == .mimo, let window = state.windows.first {
+            rowViews[0].isHidden = false
+            rowViews[1].isHidden = true
+            rowViews[0].configureModel(
+                text: state.identity.displayName,
+                color: .labelColor,
+                fontSize: 8
+            )
+            rowViews[0].update(
+                with: window,
+                title: state.identity.plan ?? window.localizedTitle
+            )
+            return
+        }
+
+        rowViews.forEach { $0.isHidden = false }
         // Touch Bar is a fixed two-row control; pad missing slots with "--".
         // Menu bar does not pad — it only shows real product windows.
         let rows = state.windowsForCompactDisplay()
@@ -99,12 +118,12 @@ private final class LimitRowView: NSView {
         setup()
     }
 
-    func update(with window: QuotaWindow) {
+    func update(with window: QuotaWindow, title: String? = nil) {
         guard window.isAvailable else {
-            showPlaceholder(title: window.localizedTitle)
+            showPlaceholder(title: title ?? window.localizedTitle)
             return
         }
-        titleLabel.stringValue = window.localizedTitle
+        titleLabel.stringValue = title ?? window.localizedTitle
         percentLabel.stringValue = "\(L.remaining)\(Int(window.remainingPercent.rounded()))%"
         resetLabel.stringValue = window.resetText
 
@@ -139,7 +158,6 @@ private final class LimitRowView: NSView {
 
     private func setup() {
         translatesAutoresizingMaskIntoConstraints = false
-        heightAnchor.constraint(equalToConstant: 12).isActive = true
 
         modelLabel.alignment = .left
 

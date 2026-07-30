@@ -105,22 +105,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
         let proxyChanged = proxyConfig != currentProxyConfiguration
         let hotkeyChanged = hotkeyConfig != currentHotkeyConfiguration
-        let providerChanged = providerConfig != currentProviderConfiguration
-
         currentProxyConfiguration = proxyConfig
         currentHotkeyConfiguration = hotkeyConfig
         currentProviderConfiguration = providerConfig
 
         if proxyChanged {
             proxySettingsDidChange()
+        } else {
+            // Also picks up provider credentials saved from the Settings window.
+            quotaService.refreshAll()
         }
 
         if hotkeyChanged {
             updateHotkeyRegistration(with: hotkeyConfig)
-        }
-
-        if providerChanged {
-            quotaService.refreshAll()
         }
 
         reloadLocalizedText()

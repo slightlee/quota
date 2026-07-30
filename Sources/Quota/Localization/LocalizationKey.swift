@@ -9,6 +9,7 @@ enum LocalizationKey: String {
 
     case fiveHourTitle = "quota.window.fiveHour"
     case weeklyTitle = "quota.window.weekly"
+    case mimoTokenPlanTitle = "quota.window.mimoTokenPlan"
     case remaining = "quota.remaining"
     case reset = "quota.reset"
     case noData = "quota.window.noData"
@@ -72,6 +73,17 @@ enum LocalizationKey: String {
     case claudeNotSignedIn = "error.claudeNotSignedIn"
     case claudeTokenExpired = "error.claudeTokenExpired"
     case claudeRequestFailed = "error.claudeRequestFailed"
+    case mimoCodeNotSignedIn = "error.mimoCodeNotSignedIn"
+    case mimoCodeInvalidAuth = "error.mimoCodeInvalidAuth"
+    case mimoCookieMissing = "error.mimoCookieMissing"
+    case mimoUnauthorized = "error.mimoUnauthorized"
+    case mimoRequestFailed = "error.mimoRequestFailed"
+    case mimoKeychainWriteFailed = "error.mimoKeychainWriteFailed"
+
+    case mimoCookieLabel = "settings.providers.mimoCookie.label"
+    case mimoCookiePlaceholder = "settings.providers.mimoCookie.placeholder"
+    case mimoCookieHelp = "settings.providers.mimoCookie.help"
+    case mimoCookieSaveErrorTitle = "settings.providers.mimoCookie.saveErrorTitle"
 
     case severityWarning = "notification.severity.warning"
     case severityUrgent = "notification.severity.urgent"
